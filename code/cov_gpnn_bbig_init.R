@@ -4,6 +4,11 @@
 ##The groups are 1. Age range (fake informative) -1 and 1 and 2. Gender -1 and 1 
 #This model uses interaction with -1,1
 
+#Nov13: correcting BB to account for non-imaging input
+#dec1: corrected gradient, changes from sex to latent
+#Dec 4, put a constraint on sigmoid prime, making it -1 or 1 max magnitude of input
+
+
 #We wnt to record the prediction of this subgrou pfor individual subjects.
 
 if (!require("pacman")) {install.packages("pacman");library(pacman)}
@@ -27,11 +32,11 @@ print("Starting")
 print('############### Test Optimised ###############')
 
 
-filename <- "nov5_cov_gpnn_bbig_init"
+filename <- "dec4_cov_gpnn_bbig_init"
 # prior.var <- 0.05 #was 0.05
 learning_rate <- 0.99 #for slow decay starting less than 1
 prior.var.bias <- 1
-epoch <- 300 #was 500
+epoch <- 200 #was 500
 beta.bb<- 0.5
 lr.init <- learning_rate
 
@@ -68,10 +73,19 @@ rsqcal <- function(true,pred){
 #Define ReLU
 relu <- function(x) sapply(x, function(z) max(0,z))
 relu.prime <- function(x) sapply(x, function(z) 1.0*(z>0))
-#Define shifted sigmoid
-sigmoid <- function(x) sapply(x, function(z) 2/(1+exp(-z))-1)
-sigmoid.prime <- function(x) sapply(x, function(z) 2*sigmoid(z)*(1-sigmoid(z)))
-
+# #Define shifted sigmoid
+# sigmoid <- function(x) sapply(x, function(z) 2/(1+exp(-z))-1)
+# sigmoid.prime <- function(x) sapply(x, function(z) 2*exp(-z)/(exp(-z)+1)^2) #this makes sense
+#Define scaled and shifted sigmoid
+sigmoid <- function(x) sapply(x, function(z) 2/(1+exp(-10*z))-1)
+sigmoid.prime <- function(x) {    #This breaks at 71, exactly the same as on Desmos
+  sapply(x, function(z) {
+    #Applying constraint to prevent gradient instability.... not sure if this is too harsh
+    z <- ifelse(abs(z) > 1, 1 * sign(z), z)
+    derivative = 20*exp(-10*z)/(exp(-10*z)+1)^2
+    return(derivative)
+  })
+}
 #Define sigmoid
 
 #Define Mean Squared Error
@@ -220,7 +234,8 @@ for(e in 1:epoch){
     
     hidden.layer <- apply(t(t(res3.dat[mini.batch$train[[b]], ]  %*% t(weights)) + bias), 2, FUN = relu) #n x n.mask
     
-    co.hidden.layer <- apply(t(t(co.dat[mini.batch$train[[b]], ]  %*% t(co.weights)) + co.bias), 2, FUN = sigmoid)
+    co.pre.hidden.layer <- t(t(co.dat[mini.batch$train[[b]], ]  %*% t(co.weights)) + co.bias)
+    co.hidden.layer <- apply(co.pre.hidden.layer , 2, FUN = sigmoid)
     
     # Generate polynomial features (linear terms)
     poly_features <- as.matrix(hidden.layer %*% partial.gp.centroid) #
@@ -268,8 +283,6 @@ for(e in 1:epoch){
     # Create the design matrix
     z.nb.test <- cbind(1,poly_features.test, c(co.hidden.layer.test), interaction_features.test)
     
-    #z.nb.test<- model.matrix(age[train.test.ind$test] ~ poly(as.matrix(hidden.layer.test %*% partial.gp.centroid), 1)*sex[train.test.ind$test])
-    
     #Loss calculation
     # hs_pred_SOI <- hs_fit_SOI$post_mean$betacoef[1] + hidden.layer.test %*%beta_fit$HS
     hs_pred_SOI <- predict_fast_lm(hs_fit_SOI, z.nb.test, alpha = 0.95)$mean
@@ -315,7 +328,7 @@ for(e in 1:epoch){
       #Update weight
       grad <- array(,dim = c(minibatch.size,dim(weights)))
       for(j in 1:n.mask){ #nrow of weights = n.mask
-        grad[,j,] <- -1/y.sigma*c(grad.loss)*(beta_fit$HS[j]+beta_fit$HS[j+n.mask+1]*sex[mini.batch$train[[b]]])*c(relu.prime(hidden.layer[,j]))*res3.dat[mini.batch$train[[b]], ]  
+        grad[,j,] <- -1/y.sigma*c(grad.loss)*(beta_fit$HS[j]+beta_fit$HS[j+n.mask+1]*c(co.hidden.layer))*c(relu.prime(hidden.layer[,j]))*res3.dat[mini.batch$train[[b]], ]  
       }
       #Take batch average
       grad.m <- apply(grad, c(2,3), mean)
@@ -324,27 +337,14 @@ for(e in 1:epoch){
       #Update weight
       co.grad <- array(,dim = c(minibatch.size,dim(co.weights)))
       
-      # print(dim(hidden.layer))
-      # print(length(c(beta_fit$HS[(n.mask+2):length(beta_fit$HS)])))
-      # print(length(c(sigmoid.prime(co.hidden.layer))))
-      # print(dim(co.dat[mini.batch$train[[b]], ]))
-      # print(dim(hidden.layer %*% c(beta_fit$HS[(n.mask+2):length(beta_fit$HS)])))
-      
-      print(dim(-1/y.sigma*c(grad.loss)*(beta_fit$HS[n.mask+1])*c(sigmoid.prime(co.hidden.layer))*co.dat[mini.batch$train[[b]], ]))
-      print(dim(-1/y.sigma*c(grad.loss)*c(hidden.layer %*% c(beta_fit$HS[(n.mask+2):length(beta_fit$HS)]))*c(sigmoid.prime(co.hidden.layer))*co.dat[mini.batch$train[[b]], ]))
-
-      
       for(j in 1:1){ #nrow of weights = n.mask
-        co.grad[,j,] <- -1/y.sigma*c(grad.loss)*(beta_fit$HS[n.mask+1])*c(sigmoid.prime(co.hidden.layer))*co.dat[mini.batch$train[[b]], ] -1/y.sigma*c(grad.loss)*c(hidden.layer %*% c(beta_fit$HS[(n.mask+2):length(beta_fit$HS)]))*c(sigmoid.prime(co.hidden.layer))*co.dat[mini.batch$train[[b]], ]
+        co.grad[,j,] <- -1/y.sigma*c(grad.loss)*(beta_fit$HS[n.mask+1])*c(apply(co.pre.hidden.layer,2,FUN = sigmoid.prime))*co.dat[mini.batch$train[[b]], ] -1/y.sigma*c(grad.loss)*c(hidden.layer %*% c(beta_fit$HS[(n.mask+2):length(beta_fit$HS)]))*c(apply(co.pre.hidden.layer,2,FUN = sigmoid.prime))*co.dat[mini.batch$train[[b]], ]
       }
       #Take batch average
       co.grad.m <- apply(co.grad, c(2,3), mean)
       
-      co.grad.b <- -1/y.sigma*c(grad.loss)*(beta_fit$HS[n.mask+1])*c(sigmoid.prime(co.hidden.layer)) -1/y.sigma*c(grad.loss)*c(hidden.layer %*% c(beta_fit$HS[(n.mask+2):length(beta_fit$HS)]))*c(sigmoid.prime(co.hidden.layer))
+      co.grad.b <- -1/y.sigma*c(grad.loss)*(beta_fit$HS[n.mask+1])*c(apply(co.pre.hidden.layer,2,FUN = sigmoid.prime)) -1/y.sigma*c(grad.loss)*c(hidden.layer %*% c(beta_fit$HS[(n.mask+2):length(beta_fit$HS)]))*c(apply(co.pre.hidden.layer,2,FUN = sigmoid.prime))
       co.grad.b.m <- mean(co.grad.b) #I am applying -grad.b here. Is it right!?!?! 2 nov
-      
-
-      print(length(co.grad.m))
       
       co.weights <- co.weights*(1-learning_rate) - learning_rate*co.grad.m 
 
@@ -352,7 +352,7 @@ for(e in 1:epoch){
       
 
       #####
-      grad.b <- 1/y.sigma* c(grad.loss)*t(beta_fit$HS[1:n.mask]*t(apply(hidden.layer, 2, FUN = relu.prime))) +1/y.sigma* c(grad.loss)*t(beta_fit$HS[(n.mask+2):(n.mask*2+1)]*t(apply(hidden.layer, 2, FUN = relu.prime)*sex[mini.batch$train[[b]]]))
+      grad.b <- 1/y.sigma* c(grad.loss)*t(beta_fit$HS[1:n.mask]*t(apply(hidden.layer, 2, FUN = relu.prime))) +1/y.sigma* c(grad.loss)*t(beta_fit$HS[(n.mask+2):(n.mask*2+1)]*t(apply(hidden.layer, 2, FUN = relu.prime)*c(co.hidden.layer)))
       
       #Take batch average
       grad.b.m <- c(apply(-grad.b, c(2), mean)) #I am applying -grad.b here. Is it right!?!?! 2 nov
@@ -374,9 +374,11 @@ for(e in 1:epoch){
       y.sigma <- y.sigma - learning_rate*(grad.sigma.m)
       y.sigma.vec <- c(y.sigma.vec,y.sigma)
       
-      delta_f <- c(c(weights/(prior.var*y.sigma) + grad.m*n.train),c(bias/prior.var.bias + grad.b.m*(n.train)))
+      delta_f <- c(c(weights/(prior.var*y.sigma) + grad.m*n.train),c(bias/prior.var.bias + grad.b.m*(n.train)),c(co.weights+co.grad.m*n.train),c(co.bias + co.grad.b.m*n.train))
+      
       grad_x <- beta.bb*delta_f + (1-beta.bb)*grad_x
-      x.param <- c(c(weights),c(bias))
+      # x.param <- c(c(weights),c(bias))
+      x.param <- c(c(weights),c(bias),c(co.weights),c(co.bias))
       
       
       #Update Cv
@@ -390,9 +392,7 @@ for(e in 1:epoch){
         conj.beta[i,it.num] <- beta.scale
         conj.invgamma[i,it.num] <- prior.var[i]
       }
-      
-      
-      
+
     }
     
     it.num <- it.num +1

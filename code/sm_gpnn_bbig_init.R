@@ -1,6 +1,15 @@
 # R script
 
+#2 Nov, latent subgroup. I will assign the subgroup to be -1 and 1 using (2*sigmoid - 1)
+##The groups are 1. Age range (fake informative) -1 and 1 and 2. Gender -1 and 1 
 #This model uses interaction with -1,1
+
+#Nov13: correcting BB to account for non-imaging input
+#4 latent classes
+#We wnt to record the prediction of this subgrou pfor individual subjects.
+
+#NOTE 1 Dec many foor loop wrt n.mask
+#Dec 4: Improve stability of softmax by transitioning 
 
 if (!require("pacman")) {install.packages("pacman");library(pacman)}
 p_load(BayesGPfit)
@@ -23,11 +32,11 @@ print("Starting")
 print('############### Test Optimised ###############')
 
 
-filename <- "sep26_gender_gpnn_bbig_init"
+filename <- "dec5_sm_gpnn_bbig_init"
 # prior.var <- 0.05 #was 0.05
 learning_rate <- 0.99 #for slow decay starting less than 1
 prior.var.bias <- 1
-epoch <- 300 #was 500
+epoch <- 200 #was 500
 beta.bb<- 0.5
 lr.init <- learning_rate
 
@@ -64,6 +73,39 @@ rsqcal <- function(true,pred){
 #Define ReLU
 relu <- function(x) sapply(x, function(z) max(0,z))
 relu.prime <- function(x) sapply(x, function(z) 1.0*(z>0))
+#Define scaled and shifted sigmoid
+sigmoid <- function(x) sapply(x, function(z) 2/(1+exp(-10*z))-1)
+sigmoid.prime <- function(x) sapply(x, function(z) 20*exp(-10*z)/(exp(-10*z)+1)^2) #this makes sense
+
+# softmax <-function(z) t(apply(z,1,function(x) exp(10*x)/sum(exp(10*x)))) #my softmax already use apply. 
+# softmax.prime <- function(x, l.grad) {
+#   a <- x %*% -t(x)*10
+#   diag(a) <- x*(10-10*x)
+#   return(a*l.grad) #deleted a*l.grad here
+# }
+# softmax <-function(z) t(apply(z,1,function(x) exp(x)/sum(exp(x)))) #my softmax already use apply. 
+#I am onna need to cap it, but keep the proportion correct.
+#Below is suggested by stackexhacnage to be numerically stable softmax
+softmax <-function(z){
+  t(apply(z,1,function(x){
+    x<-10*x
+    xmax <- max(x)
+    return(exp(x-max(x))/sum(exp(x-max(x))))
+  }))
+}
+
+softmax.prime <- function(x, l.grad) {
+  a <- x %*% -t(x)*10
+  diag(a) <- x*(10-10*x)
+  return(a*l.grad) #deleted a*l.grad here
+}
+
+#For creating interaction effect
+elementwise_product <- function(vec1, vec2) {
+  return(vec1 * vec2)
+}
+
+#Define sigmoid
 
 #Define Mean Squared Error
 mse <- function(pred, true){mean((pred-true)^2)}
@@ -106,6 +148,18 @@ age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/age_sex
 age <- age_tab$age
 sex <-  as.numeric(age_tab$sex)
 sex <- sapply(sex, function(x) replace(x, x==0,-1)) #Change female to -1, male to 1
+
+#Define another group variable called age group which is directly associated with what we are predicting.
+#age.group <- ifelse(age > mean(age), yes = 1, no = -1)
+age.group4550 <- ifelse(age > 45 & age <=50, yes =1, no = 0)
+age.group5055 <- ifelse(age > 50 & age <=55, yes =1, no = 0)
+age.group5560 <- ifelse(age > 55 & age <=60, yes =1, no = 0)
+age.group6065 <- ifelse(age > 60 & age <=65, yes =1, no = 0)
+age.group6570 <- ifelse(age > 65 & age <=70, yes =1, no = 0)
+age.group7075 <- ifelse(age > 70 & age <=75, yes =1, no = 0)
+age.group7580 <- ifelse(age > 75 & age <=80, yes =1, no = 0)
+age.group8085 <- ifelse(age > 80 & age <=85, yes =1, no = 0)
+
 
 #mask
 res3.mask <-oro.nifti::readNIfTI('/well/nichols/users/qcv214/bnn2/res3/res3mask.nii.gz')
@@ -173,12 +227,19 @@ for(i in 1:n.mask){
   weights[i,] <- rnorm(p.dat,0,sqrt(prior.var*y.sigma))
 }
 
+#Weight for non-imaging covariates
+co.dat <- cbind(sex,age.group4550,age.group5055,age.group5560,age.group6065,age.group6570,age.group7075,age.group7580,age.group8085)
+
+num.lat.class<- 4 
+co.weights <- matrix(rnorm(ncol(co.dat),0,0.01), ncol = ncol(co.dat), nrow = num.lat.class) #4 number of latent subgroup #Note that this is 
+co.bias <- rnorm(num.lat.class,0,0.1) #I think this one is still one
 #Minimum values
 min.mse <- 1e+8
 
 
 #Initialising bias (to 0)
 bias <- rnorm(n.mask)
+
 
 time.train <-  Sys.time()
 
@@ -200,21 +261,61 @@ for(e in 1:epoch){
     print(paste0("Epoch: ",e, ", batch number: ", b))
     #3 Feed it to next layer
     
-    hidden.layer <- apply(t(t(res3.dat[mini.batch$train[[b]], ]  %*% t(weights)) + bias), 2, FUN = relu)
+    hidden.layer <- apply(t(t(res3.dat[mini.batch$train[[b]], ]  %*% t(weights)) + bias), 2, FUN = relu) #n x n.mask
+    
+    co.pre.hidden.layer <- t(t(co.dat[mini.batch$train[[b]], ] %*% t(co.weights)) + co.bias)
+    co.hidden.layer <- softmax(co.pre.hidden.layer)
     
     # Generate polynomial features (linear terms)
-    poly_features <- as.matrix(hidden.layer %*% partial.gp.centroid)
-    # Create the interaction features
-    interaction_features <- poly_features * sex[mini.batch$train[[b]]]
+    poly_features <- as.matrix(hidden.layer %*% partial.gp.centroid) #
+    # Create the interaction features ====================================> This results in (n x (num.Hidden neurons x num.classes))
+    # interaction_features <- sapply(1:ncol(poly_features), function(i) {
+    #   sapply(1:ncol(co.hidden.layer), function(j) {
+    #     elementwise_product(poly_features[, i], co.hidden.layer[, j])
+    #   })
+    # })
+    # # Create the design matrix
+    # interaction_features <- array(data = interaction_features, dim = c(nrow(poly_features), ncol(poly_features) * ncol(co.hidden.layer))) #m1n1m1n2m1n3m1n4
+    #I think I want n1m1,n1m2,n1m3,n1m4,,,,,n1m12, n2
+    
+    interaction_features <- sapply(1:ncol(co.hidden.layer), function(i) {
+      sapply(1:ncol(poly_features), function(j) {
+        elementwise_product(co.hidden.layer[, i], poly_features[, j])
+      })
+    })
     # Create the design matrix
-    z.nb <- cbind(1,poly_features, sex[mini.batch$train[[b]]], interaction_features)
+    interaction_features <- array(data = interaction_features, dim = c(nrow(co.hidden.layer), ncol(co.hidden.layer) * ncol(poly_features))) #m1n1m1n2m1n3m1n4
+    
+    # print(dim(poly_features))
+    # print(dim(co.hidden.layer))
+    # print(dim(interaction_features))
+    
+    z.nb <- cbind(1,poly_features, co.hidden.layer, interaction_features) #This is different from LASIR in the sense that the subgroup latent directly affect the output, whereas the group themselves dont. But then that can be modified easily.
     
     hs_fit_SOI <- fast_normal_lm(age[mini.batch$train[[b]]],z.nb) #This also gives the bias term
-
     
-    beta_fit <- data.frame(HS = c(partial.gp.centroid%*%hs_fit_SOI$post_mean$betacoef[2:(l.expan+1)],
-                                  hs_fit_SOI$post_mean$betacoef[l.expan+2],
-                                  partial.gp.centroid%*%hs_fit_SOI$post_mean$betacoef[-1:-(l.expan+2)] ))
+    # print(dim(partial.gp.centroid))
+    # # print(length(hs_fit_SOI$post_mean$betacoef[-1:-(l.expan+2+num.lat.class-1)]))
+    # print(length((l.expan+2):(l.expan+2+num.lat.class-1)))
+    # print(length((l.expan+2):(l.expan+2+num.lat.class-1)))
+    # print(length((l.expan+2):(l.expan+2+num.lat.class-1)))
+    
+    # beta_fit <- data.frame(HS = c(partial.gp.centroid%*%hs_fit_SOI$post_mean$betacoef[2:(l.expan+1)], #Main imaging effects
+    #                               hs_fit_SOI$post_mean$betacoef[(l.expan+2):(l.expan+2+num.lat.class-1)],            #Main Latent effect
+    #                               partial.gp.centroid%*%hs_fit_SOI$post_mean$betacoef[-1:-(l.expan+2+num.lat.class-1)] )) #everything else, ie Interaction effects
+    beta_fit <- data.frame(HS = c(partial.gp.centroid%*%hs_fit_SOI$post_mean$betacoef[2:(l.expan+1)], #Main imaging effects
+                                  hs_fit_SOI$post_mean$betacoef[(l.expan+2):(l.expan+2+num.lat.class-1)],            #Main Latent effect
+                                  partial.gp.centroid%*%hs_fit_SOI$post_mean$betacoef[(l.expan+2+num.lat.class):(l.expan+2+num.lat.class+l.expan-1)],
+                                  partial.gp.centroid%*%hs_fit_SOI$post_mean$betacoef[(l.expan+2+num.lat.class+l.expan):(l.expan+2+num.lat.class+l.expan*2-1)],
+                                  partial.gp.centroid%*%hs_fit_SOI$post_mean$betacoef[(l.expan+2+num.lat.class+l.expan*2):(l.expan+2+num.lat.class+l.expan*3-1)],
+                                  partial.gp.centroid%*%hs_fit_SOI$post_mean$betacoef[(l.expan+2+num.lat.class+l.expan*3):(l.expan+2+num.lat.class+l.expan*4-1)]
+                                  )) #everything else, ie Interaction effects
+    #Last of the above should alternate. length(everything else) is 21824 = 4* 5456(l.expan)
+    #Is it as simple as doing this 4 times? It would work but not sure if right or is it concating 4 alternate =>This sounds more convincing. But then could I just swap interaction feature?
+    
+    
+    #i want result to be r1c1,r1c2,r1c3,r1c4, r2c1,r2c2,r2c3,r2c4 
+    #previously i had r1c1 r2c1 r3c1.... i only had 1 c1
     
     l.bias <- hs_fit_SOI$post_mean$betacoef[1]
     
@@ -238,20 +339,37 @@ for(e in 1:epoch){
     
     #Validation
     #Layers
-    hidden.layer.test <- apply(t(t(res3.dat[train.test.ind$test, ] %*% t(weights)) + bias), 2, FUN = relu)
     
+    hidden.layer.test <- apply(t(t(res3.dat[train.test.ind$test, ] %*% t(weights)) + bias), 2, FUN = relu)
     poly_features.test <- as.matrix(hidden.layer.test %*% partial.gp.centroid)
-    # Create the interaction features
-    interaction_features.test <- poly_features.test * sex[train.test.ind$test]
+
+    co.hidden.layer.test <- softmax(t(t(co.dat[train.test.ind$test, ] %*% t(co.weights)) + co.bias))
+    # Create the interaction features ====================================> This results in (n x (num.Hidden neurons x num.classes))
+    # interaction_features.test <- sapply(1:ncol(poly_features.test), function(i) {
+    #   sapply(1:ncol(co.hidden.layer.test), function(j) {
+    #     elementwise_product(poly_features.test[, i], co.hidden.layer.test[, j])
+    #   })
+    # })
+    # interaction_features.test <- array(data = interaction_features.test, dim = c(nrow(poly_features.test), ncol(poly_features.test) * ncol(co.hidden.layer.test)))
+    # 
+    
+    interaction_features.test <- sapply(1:ncol(co.hidden.layer.test), function(i) {
+      sapply(1:ncol(poly_features.test), function(j) {
+        elementwise_product(co.hidden.layer.test[, i], poly_features.test[, j])
+      })
+    })
     # Create the design matrix
-    z.nb.test <- cbind(1,poly_features.test, sex[train.test.ind$test], interaction_features.test)
+    interaction_features.test <- array(data = interaction_features.test, dim = c(nrow(co.hidden.layer.test), ncol(co.hidden.layer.test) * ncol(poly_features.test))) #m1n1m1n2m1n3m1n4
+    
+    # Create the design matrix
+    z.nb.test <- cbind(1,poly_features.test, co.hidden.layer.test, interaction_features.test)
     
     #z.nb.test<- model.matrix(age[train.test.ind$test] ~ poly(as.matrix(hidden.layer.test %*% partial.gp.centroid), 1)*sex[train.test.ind$test])
     
     #Loss calculation
     # hs_pred_SOI <- hs_fit_SOI$post_mean$betacoef[1] + hidden.layer.test %*%beta_fit$HS
     hs_pred_SOI <- predict_fast_lm(hs_fit_SOI, z.nb.test, alpha = 0.95)$mean
-
+    
     
     loss.val <- c(loss.val, mse(hs_pred_SOI,age[train.test.ind$test]))
     rsq.val <- c(rsq.val, rsqcal(age[train.test.ind$test],hs_pred_SOI))
@@ -272,6 +390,8 @@ for(e in 1:epoch){
       min.beta <- conj.beta[,(it.num-1)]
       min.prior.var <- conj.invgamma[,(it.num-1)]
       min.mse <- tail(loss.val,1)
+      min.co.weights <- co.weights
+      min.co.bias <- co.bias
       
     }
     ##Keeping the last 5 epochs predictions
@@ -290,23 +410,70 @@ for(e in 1:epoch){
       
       #Update weight
       grad <- array(,dim = c(minibatch.size,dim(weights)))
+      
+      #Each 
       for(j in 1:n.mask){ #nrow of weights = n.mask
-        grad[,j,] <- -1/y.sigma*c(grad.loss)*(beta_fit$HS[j]+beta_fit$HS[j+n.mask+1]*sex[mini.batch$train[[b]]])*c(relu.prime(hidden.layer[,j]))*res3.dat[mini.batch$train[[b]], ]  
+        grad[,j,] <- -1/y.sigma*c(grad.loss)*(beta_fit$HS[j]+
+                                                beta_fit$HS[n.mask+num.lat.class+1+(j-1)*num.lat.class]*c(co.hidden.layer[,1])+
+                                                beta_fit$HS[n.mask+num.lat.class+2+(j-1)*num.lat.class]*c(co.hidden.layer[,2])+ 
+                                                beta_fit$HS[n.mask+num.lat.class+3+(j-1)*num.lat.class]*c(co.hidden.layer[,3])+ 
+                                                beta_fit$HS[n.mask+num.lat.class+4+(j-1)*num.lat.class]*c(co.hidden.layer[,4])
+        )*c(relu.prime(hidden.layer[,j]))*res3.dat[mini.batch$train[[b]], ]  #######this is wrong shttt. sex shouldnt be there, it should be the sigmoid
       }
-      
-      
+      #Sex shouldnt be in the above, it should be sigmoid. That means all of my sigmoid are wrong.
       #Take batch average
       grad.m <- apply(grad, c(2,3), mean)
+      
+      #update weights for non-imaging covariate
+      #Update weight
+      #co.grad <- array(,dim = c(minibatch.size,dim(co.weights)))
+      #########Here is inefficiency
+      l.grad <- beta_fit$HS[(n.mask+1):(n.mask+4)] #Main effect first
+      for(j in 1:n.mask){
+        l.grad <- l.grad +beta_fit$HS[(n.mask+num.lat.class+1+(j-1)*num.lat.class):(n.mask+num.lat.class+4+(j-1)*num.lat.class)]
+      }
+        
+      co.sm.grad <- apply(co.hidden.layer,1,softmax.prime,l.grad = l.grad) #Note that softmax.prime take in softmax output rather than the pre-softmax input
+      #Then I need to times co.sm.grad by l.grad. I think I need l.grad to be inside softmax.prime
+      #Then for the resulting post-3D-transformation of co.sm.grad, I want to time each 1st dim by c(grad.loss). This is as simple as ...*c(grad.loss) [have verified]
+      co.sm.grad <- array(t(co.sm.grad),dim = c(ncol(co.sm.grad),sqrt(nrow(co.sm.grad)),sqrt(nrow(co.sm.grad))))
+      grad.sum <- apply(co.sm.grad*(-1/y.sigma*c(grad.loss)), c(1,3), sum)
+      
+      co.grad.m<- t(grad.sum)%*%co.dat[mini.batch$train[[b]], ]/nrow(co.dat[mini.batch$train[[b]], ]) #n.lat class * num attr
+      
+      print("Summary grad.sum")
+      print(summary(c(grad.sum)))
+      #Take batch average
+      print("Summary co.grad.m")
+      print(summary(c(co.grad.m)))
+      
+      co.grad.b.m <- c(colMeans(grad.sum))
+      
+      co.weights <- co.weights*(1-learning_rate) - learning_rate*co.grad.m 
+      
+      co.bias <- co.bias*(1-learning_rate) - learning_rate*co.grad.b.m
       
       
       #####
       grad.b <- 1/y.sigma* c(grad.loss)*t(beta_fit$HS[1:n.mask]*t(apply(hidden.layer, 2, FUN = relu.prime))) +1/y.sigma* c(grad.loss)*t(beta_fit$HS[(n.mask+2):(n.mask*2+1)]*t(apply(hidden.layer, 2, FUN = relu.prime)*sex[mini.batch$train[[b]]]))
-      ###Should it be - grad?
       
+      #########Here is inefficiency
+      grad.b <- matrix(, nrow = minibatch.size, ncol = length(bias))
+      for(j in 1:n.mask){ #nrow of weights = n.mask
+        grad.b[,j] <- -1/y.sigma*c(grad.loss)*(beta_fit$HS[j]+
+                                                beta_fit$HS[n.mask+num.lat.class+1+(j-1)*num.lat.class]*c(co.hidden.layer[,1])+ #r1c1
+                                                beta_fit$HS[n.mask+num.lat.class+2+(j-1)*num.lat.class]*c(co.hidden.layer[,2])+ #r1c2
+                                                beta_fit$HS[n.mask+num.lat.class+3+(j-1)*num.lat.class]*c(co.hidden.layer[,3])+ #r1c3
+                                                beta_fit$HS[n.mask+num.lat.class+4+(j-1)*num.lat.class]*c(co.hidden.layer[,4]) #r1c4
+        )*c(relu.prime(hidden.layer[,j]))  #######this is wrong shttt. sex shouldnt be there, it should be the sigmoid
+      }
       #Take batch average
-      grad.b.m <- c(apply(grad.b, c(2), mean))
+      grad.b.m <- c(apply(grad.b, c(2), mean)) #I am applying -grad.b here. Is it right!?!?! 2 nov
       
       # Update sigma
+      
+      ####This has to be changed
+      
       grad.sigma.m <- mean(length(train.test.ind$train)/(2*y.sigma) - length(train.test.ind$train)/(2*y.sigma^2)*c(grad.loss)^2-1/(2*y.sigma^2)*sum(c(weights/prior.var)^2)+1/(2*y.sigma)*p.dat*n.mask)
       ####Note here of the static equal prior.var
       #Update theta matrix
@@ -320,9 +487,11 @@ for(e in 1:epoch){
       y.sigma <- y.sigma - learning_rate*(grad.sigma.m)
       y.sigma.vec <- c(y.sigma.vec,y.sigma)
       
-      delta_f <- c(c(weights/(prior.var*y.sigma) + grad.m*n.train),c(bias/prior.var.bias + grad.b.m*(n.train)))
+      delta_f <- c(c(weights/(prior.var*y.sigma) + grad.m*n.train),c(bias/prior.var.bias + grad.b.m*(n.train)),c(co.weights+co.grad.m*n.train),c(co.bias + co.grad.b.m*n.train))
+      
       grad_x <- beta.bb*delta_f + (1-beta.bb)*grad_x
-      x.param <- c(c(weights),c(bias))
+      # x.param <- c(c(weights),c(bias))
+      x.param <- c(c(weights),c(bias),c(co.weights),c(co.bias))
       
       
       #Update Cv
@@ -398,7 +567,10 @@ write.csv(bias,paste0( '/well/nichols/users/qcv214/KGPNN/pile/re_',filename,'_bi
 write.csv(y.sigma.vec,paste0( '/well/nichols/users/qcv214/KGPNN/pile/re_',filename,'_sigma_',"_jobid_",JobId,".csv"), row.names = FALSE)
 write.csv(l.bias,paste0( '/well/nichols/users/qcv214/KGPNN/pile/re_',filename,'_lbias_',"_jobid_",JobId,".csv"), row.names = FALSE)
 write.csv(lr.vec,paste0( '/well/nichols/users/qcv214/KGPNN/pile/re_',filename,'_lr_',"_jobid_",JobId,".csv"), row.names = FALSE)
-write_feather(as.data.frame(c(partial.gp.centroid%*%hs_fit_SOI$post_mean$betacoef[2:(l.expan+1)],hs_fit_SOI$post_mean$betacoef[l.expan+2],partial.gp.centroid%*%hs_fit_SOI$post_mean$betacoef[-1:-(l.expan+2)] )),paste0( '/well/nichols/users/qcv214/KGPNN/pile/re_',filename,'_lweights_',"_jobid_",JobId,'.feather'))
+write_feather(as.data.frame(c(beta_fit$HS )),paste0( '/well/nichols/users/qcv214/KGPNN/pile/re_',filename,'_lweights_',"_jobid_",JobId,'.feather'))
+write.csv(co.weights,paste0( '/well/nichols/users/qcv214/KGPNN/pile/re_',filename,'_coweights_',"_jobid_",JobId,".csv"), row.names = FALSE)
+write.csv(co.bias,paste0( '/well/nichols/users/qcv214/KGPNN/pile/re_',filename,'_cobias_',"_jobid_",JobId,".csv"), row.names = FALSE)
+
 
 temp.frame <- as.data.frame(rbind(pred.train.ind,pred.train.val))
 colnames(temp.frame) <- NULL
@@ -420,6 +592,8 @@ write.csv(min.lr,paste0( '/well/nichols/users/qcv214/KGPNN/pile/re_',filename,'_
 write.csv(min.alpha,paste0( '/well/nichols/users/qcv214/KGPNN/pile/re_',filename,'_minalpha_',"_jobid_",JobId,".csv"), row.names = FALSE)
 write.csv(min.beta,paste0( '/well/nichols/users/qcv214/KGPNN/pile/re_',filename,'_minbeta_',"_jobid_",JobId,".csv"), row.names = FALSE)
 write.csv(min.prior.var,paste0( '/well/nichols/users/qcv214/KGPNN/pile/re_',filename,'_minpriorvar_',"_jobid_",JobId,".csv"), row.names = FALSE)
+write.csv(min.co.weights,paste0( '/well/nichols/users/qcv214/KGPNN/pile/re_',filename,'_mincoweights_',"_jobid_",JobId,".csv"), row.names = FALSE)
+write.csv(min.co.bias,paste0( '/well/nichols/users/qcv214/KGPNN/pile/re_',filename,'_mincobias_',"_jobid_",JobId,".csv"), row.names = FALSE)
 
 
 write_feather(temp.frame,paste0( '/well/nichols/users/qcv214/KGPNN/pile/re_',filename,'_outpred_',"_jobid_",JobId,'.feather'))
