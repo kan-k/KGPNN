@@ -25,7 +25,7 @@ print("Starting")
 print('############### Test Optimised ###############')
 
 
-filename <- "dec6_sm_gpnn_bbig_init_bbs" 
+filename <- "dec9_sm_gpnn_bbig_init_bbs" 
 init.num <- sample(c(5,7,8,10),1)#JobId  
 prior.var <- 0.05 #was 0.05
 learning_rate <- 0.99 #for slow decay starting less than 1
@@ -246,9 +246,7 @@ for(e in 1:epoch){
     #3 Feed it to next layer
     
     hidden.layer <- apply(t(t(res3.dat[mini.batch$train[[b]], ]  %*% t(weights)) + bias), 2, FUN = relu) #n x n.mask
-    print("passed weights")
     co.pre.hidden.layer <- t(t(co.dat[mini.batch$train[[b]], ] %*% t(co.weights)) + co.bias)
-    print("passed co.weights")
     co.hidden.layer <- softmax(co.pre.hidden.layer)
     
     # Generate polynomial features (linear terms)
@@ -263,7 +261,7 @@ for(e in 1:epoch){
     interaction_features <- array(data = interaction_features, dim = c(nrow(co.hidden.layer), ncol(co.hidden.layer) * ncol(poly_features))) #m1n1m1n2m1n3m1n4
     
     # Create the design matrix
-    z.nb <- cbind(1,poly_features, c(co.hidden.layer), interaction_features) #This is different from LASIR in the sense that the subgroup latent directly affect the output, whereas the group themselves dont. But then that can be modified easily.
+    z.nb <- cbind(1,poly_features, co.hidden.layer, interaction_features) #This is different from LASIR in the sense that the subgroup latent directly affect the output, whereas the group themselves dont. But then that can be modified easily.
     
     hs_fit_SOI <- fast_normal_lm(age[mini.batch$train[[b]]],z.nb) #This also gives the bias term
     
@@ -275,7 +273,6 @@ for(e in 1:epoch){
                                   partial.gp.centroid%*%hs_fit_SOI$post_mean$betacoef[(l.expan+2+num.lat.class+l.expan*2):(l.expan+2+num.lat.class+l.expan*3-1)],
                                   partial.gp.centroid%*%hs_fit_SOI$post_mean$betacoef[(l.expan+2+num.lat.class+l.expan*3):(l.expan+2+num.lat.class+l.expan*4-1)]
     ))
-    
     l.bias <- hs_fit_SOI$post_mean$betacoef[1]
     
     hs_in.pred_SOI <- predict_fast_lm(hs_fit_SOI, z.nb, alpha = 0.95)$mean
@@ -314,7 +311,7 @@ for(e in 1:epoch){
     # Create the design matrix
     interaction_features.test <- array(data = interaction_features.test, dim = c(nrow(co.hidden.layer.test), ncol(co.hidden.layer.test) * ncol(poly_features.test))) #m1n1m1n2m1n3m1n4
     # Create the design matrix
-    z.nb.test <- cbind(1,poly_features.test, c(co.hidden.layer.test), interaction_features.test)
+    z.nb.test <- cbind(1,poly_features.test, co.hidden.layer.test, interaction_features.test)
     
     #z.nb.test<- model.matrix(age[train.test.ind$test] ~ poly(as.matrix(hidden.layer.test %*% partial.gp.centroid), 1)*sex[train.test.ind$test])
     
@@ -368,11 +365,14 @@ for(e in 1:epoch){
         l.grad <- l.grad +beta_fit$HS[(n.mask+num.lat.class+1+(j-1)*num.lat.class):(n.mask+num.lat.class+4+(j-1)*num.lat.class)]
       }
       
+      
       co.sm.grad <- apply(co.hidden.layer,1,softmax.prime,l.grad = l.grad) #Note that softmax.prime take in softmax output rather than the pre-softmax input
       #Then I need to times co.sm.grad by l.grad. I think I need l.grad to be inside softmax.prime
       #Then for the resulting post-3D-transformation of co.sm.grad, I want to time each 1st dim by c(grad.loss). This is as simple as ...*c(grad.loss) [have verified]
+      
       co.sm.grad <- array(t(co.sm.grad),dim = c(ncol(co.sm.grad),sqrt(nrow(co.sm.grad)),sqrt(nrow(co.sm.grad))))
       grad.sum <- apply(co.sm.grad*(-1/y.sigma*c(grad.loss)), c(1,3), sum)
+
       
       co.grad.m<- t(grad.sum)%*%co.dat[mini.batch$train[[b]], ]/nrow(co.dat[mini.batch$train[[b]], ]) #n.lat class * num attr
       
@@ -383,8 +383,7 @@ for(e in 1:epoch){
       
       co.bias <- co.bias*(1-learning_rate) - learning_rate*co.grad.b.m
       
-      grad.b <- 1/y.sigma* c(grad.loss)*t(beta_fit$HS[1:n.mask]*t(apply(hidden.layer, 2, FUN = relu.prime))) +1/y.sigma* c(grad.loss)*t(beta_fit$HS[(n.mask+2):(n.mask*2+1)]*t(apply(hidden.layer, 2, FUN = relu.prime)*sex[mini.batch$train[[b]]]))
-      
+
       #########Here is inefficiency
       grad.b <- matrix(, nrow = minibatch.size, ncol = length(bias))
       for(j in 1:n.mask){ #nrow of weights = n.mask
@@ -450,13 +449,35 @@ for(e in 1:epoch){
     gp.mask.hs@bitpix = 32
     writeNIfTI(gp.mask.hs,paste0('/well/nichols/users/qcv214/KGPNN/viz/',filename,"_epoch_",e,'_mainsal_',JobId))
     
-    # salient.mat <- t(t(beta_fit$HS[(n.mask+2):(n.mask*2+1)]*weights) %*% t(sex[train.test.ind$train] * apply(t(t(res3.dat[train.test.ind$train, ]  %*% t(weights)) + bias), 2, FUN = relu.prime))) 
-    # 
-    # gp.mask.hs <- res3.mask
-    # gp.mask.hs[gp.mask.hs!=0] <- abs(colMeans(salient.mat))
-    # gp.mask.hs@datatype = 16
-    # gp.mask.hs@bitpix = 32
-    # writeNIfTI(gp.mask.hs,paste0('/well/nichols/users/qcv214/KGPNN/viz/',filename,"_epoch_",e,'_intersal_',JobId))
+    
+    
+    salient.mat <- t(t(beta_fit$HS[n.mask+num.lat.class+1+(seq(n.mask)-1)*num.lat.class]*weights) %*% t(c(co.hidden.layer[,1]) * apply(t(t(res3.dat[mini.batch$train[[b]], ]  %*% t(weights)) + bias), 2, FUN = relu.prime)))
+    gp.mask.hs <- res3.mask
+    gp.mask.hs[gp.mask.hs!=0] <- abs(colMeans(salient.mat))
+    gp.mask.hs@datatype = 16
+    gp.mask.hs@bitpix = 32
+    writeNIfTI(gp.mask.hs,paste0('/well/nichols/users/qcv214/KGPNN/viz/',filename,"_epoch_",e,'_inter1sal_',JobId))
+    
+    salient.mat <- t(t(beta_fit$HS[n.mask+num.lat.class+2+(seq(n.mask)-1)*num.lat.class]*weights) %*% t(c(co.hidden.layer[,2]) * apply(t(t(res3.dat[mini.batch$train[[b]], ]  %*% t(weights)) + bias), 2, FUN = relu.prime)))
+    gp.mask.hs <- res3.mask
+    gp.mask.hs[gp.mask.hs!=0] <- abs(colMeans(salient.mat))
+    gp.mask.hs@datatype = 16
+    gp.mask.hs@bitpix = 32
+    writeNIfTI(gp.mask.hs,paste0('/well/nichols/users/qcv214/KGPNN/viz/',filename,"_epoch_",e,'_inter2sal_',JobId))
+    
+    salient.mat <- t(t(beta_fit$HS[n.mask+num.lat.class+3+(seq(n.mask)-1)*num.lat.class]*weights) %*% t(c(co.hidden.layer[,3]) * apply(t(t(res3.dat[mini.batch$train[[b]], ]  %*% t(weights)) + bias), 2, FUN = relu.prime)))
+    gp.mask.hs <- res3.mask
+    gp.mask.hs[gp.mask.hs!=0] <- abs(colMeans(salient.mat))
+    gp.mask.hs@datatype = 16
+    gp.mask.hs@bitpix = 32
+    writeNIfTI(gp.mask.hs,paste0('/well/nichols/users/qcv214/KGPNN/viz/',filename,"_epoch_",e,'_inter3sal_',JobId))
+    
+    salient.mat <- t(t(beta_fit$HS[n.mask+num.lat.class+4+(seq(n.mask)-1)*num.lat.class]*weights) %*% t(c(co.hidden.layer[,4]) * apply(t(t(res3.dat[mini.batch$train[[b]], ]  %*% t(weights)) + bias), 2, FUN = relu.prime)))
+    gp.mask.hs <- res3.mask
+    gp.mask.hs[gp.mask.hs!=0] <- abs(colMeans(salient.mat))
+    gp.mask.hs@datatype = 16
+    gp.mask.hs@bitpix = 32
+    writeNIfTI(gp.mask.hs,paste0('/well/nichols/users/qcv214/KGPNN/viz/',filename,"_epoch_",e,'_inter4sal_',JobId))
     
     # salient.mat <- apply(t(t(res3.dat[train.test.ind$train, ]  %*% t(weights)) + bias), 2, FUN = relu.prime) %*%beta_fit$HS
     #salient.mat <- t(t(beta_fit$HS*weights) %*% t(apply(t(t(res3.dat[train.test.ind$train, ]  %*% t(weights)) + bias), 2, FUN = relu.prime)))
@@ -516,9 +537,7 @@ write.csv(y.sigma.vec,paste0( '/well/nichols/users/qcv214/KGPNN/pile/re_',filena
 write.csv(l.bias,paste0( '/well/nichols/users/qcv214/KGPNN/pile/re_',filename,'_lbias_',"_jobid_",JobId,".csv"), row.names = FALSE)
 write.csv(lr.vec,paste0( '/well/nichols/users/qcv214/KGPNN/pile/re_',filename,'_lr_',"_jobid_",JobId,".csv"), row.names = FALSE)
 write.csv(pre.lr.vec,paste0( '/well/nichols/users/qcv214/KGPNN/pile/re_',filename,'_prelr_',"_jobid_",JobId,".csv"), row.names = FALSE)
-write_feather(as.data.frame(c(partial.gp.centroid%*%hs_fit_SOI$post_mean$betacoef[2:(l.expan+1)],
-                              hs_fit_SOI$post_mean$betacoef[l.expan+2],
-                              partial.gp.centroid%*%hs_fit_SOI$post_mean$betacoef[-1:-(l.expan+2)] )),paste0( '/well/nichols/users/qcv214/KGPNN/pile/re_',filename,'_lweights_',"_jobid_",JobId,'.feather'))
+write_feather(as.data.frame(c(beta_fit$HS )),paste0( '/well/nichols/users/qcv214/KGPNN/pile/re_',filename,'_lweights_',"_jobid_",JobId,'.feather'))
 write.csv(co.weights,paste0( '/well/nichols/users/qcv214/KGPNN/pile/re_',filename,'_coweights_',"_jobid_",JobId,".csv"), row.names = FALSE)
 write.csv(co.bias,paste0( '/well/nichols/users/qcv214/KGPNN/pile/re_',filename,'_cobias_',"_jobid_",JobId,".csv"), row.names = FALSE)
 

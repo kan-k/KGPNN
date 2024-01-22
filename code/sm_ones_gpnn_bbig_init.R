@@ -29,10 +29,7 @@ set.seed(JobId)
 
 print("Starting")
 
-print('############### Test Optimised ###############')
-
-
-filename <- "dec5_sm_gpnn_bbig_init"
+filename <- "dec15_sm_ones_gpnn_bbig_init"
 # prior.var <- 0.05 #was 0.05
 learning_rate <- 0.99 #for slow decay starting less than 1
 prior.var.bias <- 1
@@ -77,26 +74,31 @@ relu.prime <- function(x) sapply(x, function(z) 1.0*(z>0))
 sigmoid <- function(x) sapply(x, function(z) 2/(1+exp(-10*z))-1)
 sigmoid.prime <- function(x) sapply(x, function(z) 20*exp(-10*z)/(exp(-10*z)+1)^2) #this makes sense
 
-# softmax <-function(z) t(apply(z,1,function(x) exp(10*x)/sum(exp(10*x)))) #my softmax already use apply. 
+#Below is suggested by stackexhacnage to be numerically stable softmax
+# softmax <-function(z){
+#   t(apply(z,1,function(x){
+#     x<-10*x
+#     xmax <- max(x)
+#     return(exp(x-max(x))/sum(exp(x-max(x))))
+#   }))
+# }
+# 
 # softmax.prime <- function(x, l.grad) {
 #   a <- x %*% -t(x)*10
 #   diag(a) <- x*(10-10*x)
 #   return(a*l.grad) #deleted a*l.grad here
 # }
-# softmax <-function(z) t(apply(z,1,function(x) exp(x)/sum(exp(x)))) #my softmax already use apply. 
-#I am onna need to cap it, but keep the proportion correct.
-#Below is suggested by stackexhacnage to be numerically stable softmax
+
 softmax <-function(z){
   t(apply(z,1,function(x){
-    x<-10*x
     xmax <- max(x)
     return(exp(x-max(x))/sum(exp(x-max(x))))
   }))
 }
 
 softmax.prime <- function(x, l.grad) {
-  a <- x %*% -t(x)*10
-  diag(a) <- x*(10-10*x)
+  a <- x %*% -t(x)
+  diag(a) <- x*(1-x)
   return(a*l.grad) #deleted a*l.grad here
 }
 
@@ -137,6 +139,8 @@ pred.train.ind <- vector(mode = "numeric")
 pred.train.val <- vector(mode = "numeric")
 pred.test.ind <- vector(mode = "numeric")
 pred.test.val <- vector(mode = "numeric")
+
+
 #Epoch learning rate
 lr.vec <- vector(mode = "numeric")
 print("Loading data")
@@ -151,14 +155,14 @@ sex <- sapply(sex, function(x) replace(x, x==0,-1)) #Change female to -1, male t
 
 #Define another group variable called age group which is directly associated with what we are predicting.
 #age.group <- ifelse(age > mean(age), yes = 1, no = -1)
-age.group4550 <- ifelse(age > 45 & age <=50, yes =1, no = 0)
-age.group5055 <- ifelse(age > 50 & age <=55, yes =1, no = 0)
-age.group5560 <- ifelse(age > 55 & age <=60, yes =1, no = 0)
-age.group6065 <- ifelse(age > 60 & age <=65, yes =1, no = 0)
-age.group6570 <- ifelse(age > 65 & age <=70, yes =1, no = 0)
-age.group7075 <- ifelse(age > 70 & age <=75, yes =1, no = 0)
-age.group7580 <- ifelse(age > 75 & age <=80, yes =1, no = 0)
-age.group8085 <- ifelse(age > 80 & age <=85, yes =1, no = 0)
+# age.group4550 <- ifelse(age > 45 & age <=50, yes =1, no = 0)
+# age.group5055 <- ifelse(age > 50 & age <=55, yes =1, no = 0)
+# age.group5560 <- ifelse(age > 55 & age <=60, yes =1, no = 0)
+# age.group6065 <- ifelse(age > 60 & age <=65, yes =1, no = 0)
+# age.group6570 <- ifelse(age > 65 & age <=70, yes =1, no = 0)
+# age.group7075 <- ifelse(age > 70 & age <=75, yes =1, no = 0)
+# age.group7580 <- ifelse(age > 75 & age <=80, yes =1, no = 0)
+# age.group8085 <- ifelse(age > 80 & age <=85, yes =1, no = 0)
 
 
 #mask
@@ -228,7 +232,7 @@ for(i in 1:n.mask){
 }
 
 #Weight for non-imaging covariates
-co.dat <- cbind(sex,age.group4550,age.group5055,age.group5560,age.group6065,age.group6570,age.group7075,age.group7580,age.group8085)
+co.dat <- matrix(1,nrow = nrow(res3.dat),ncol = 9)
 
 num.lat.class<- 4 
 co.weights <- matrix(rnorm(ncol(co.dat),0,0.01), ncol = ncol(co.dat), nrow = num.lat.class) #4 number of latent subgroup #Note that this is 
@@ -309,7 +313,7 @@ for(e in 1:epoch){
                                   partial.gp.centroid%*%hs_fit_SOI$post_mean$betacoef[(l.expan+2+num.lat.class+l.expan):(l.expan+2+num.lat.class+l.expan*2-1)],
                                   partial.gp.centroid%*%hs_fit_SOI$post_mean$betacoef[(l.expan+2+num.lat.class+l.expan*2):(l.expan+2+num.lat.class+l.expan*3-1)],
                                   partial.gp.centroid%*%hs_fit_SOI$post_mean$betacoef[(l.expan+2+num.lat.class+l.expan*3):(l.expan+2+num.lat.class+l.expan*4-1)]
-                                  )) #everything else, ie Interaction effects
+    )) #everything else, ie Interaction effects
     #Last of the above should alternate. length(everything else) is 21824 = 4* 5456(l.expan)
     #Is it as simple as doing this 4 times? It would work but not sure if right or is it concating 4 alternate =>This sounds more convincing. But then could I just swap interaction feature?
     
@@ -342,7 +346,7 @@ for(e in 1:epoch){
     
     hidden.layer.test <- apply(t(t(res3.dat[train.test.ind$test, ] %*% t(weights)) + bias), 2, FUN = relu)
     poly_features.test <- as.matrix(hidden.layer.test %*% partial.gp.centroid)
-
+    
     co.hidden.layer.test <- softmax(t(t(co.dat[train.test.ind$test, ] %*% t(co.weights)) + co.bias))
     # Create the interaction features ====================================> This results in (n x (num.Hidden neurons x num.classes))
     # interaction_features.test <- sapply(1:ncol(poly_features.test), function(i) {
@@ -432,7 +436,6 @@ for(e in 1:epoch){
       for(j in 1:n.mask){
         l.grad <- l.grad +beta_fit$HS[(n.mask+num.lat.class+1+(j-1)*num.lat.class):(n.mask+num.lat.class+4+(j-1)*num.lat.class)]
       }
-        
       co.sm.grad <- apply(co.hidden.layer,1,softmax.prime,l.grad = l.grad) #Note that softmax.prime take in softmax output rather than the pre-softmax input
       #Then I need to times co.sm.grad by l.grad. I think I need l.grad to be inside softmax.prime
       #Then for the resulting post-3D-transformation of co.sm.grad, I want to time each 1st dim by c(grad.loss). This is as simple as ...*c(grad.loss) [have verified]
@@ -440,12 +443,6 @@ for(e in 1:epoch){
       grad.sum <- apply(co.sm.grad*(-1/y.sigma*c(grad.loss)), c(1,3), sum)
       
       co.grad.m<- t(grad.sum)%*%co.dat[mini.batch$train[[b]], ]/nrow(co.dat[mini.batch$train[[b]], ]) #n.lat class * num attr
-      
-      print("Summary grad.sum")
-      print(summary(c(grad.sum)))
-      #Take batch average
-      print("Summary co.grad.m")
-      print(summary(c(co.grad.m)))
       
       co.grad.b.m <- c(colMeans(grad.sum))
       
@@ -459,10 +456,10 @@ for(e in 1:epoch){
       grad.b <- matrix(, nrow = minibatch.size, ncol = length(bias))
       for(j in 1:n.mask){ #nrow of weights = n.mask
         grad.b[,j] <- -1/y.sigma*c(grad.loss)*(beta_fit$HS[j]+
-                                                beta_fit$HS[n.mask+num.lat.class+1+(j-1)*num.lat.class]*c(co.hidden.layer[,1])+ #r1c1
-                                                beta_fit$HS[n.mask+num.lat.class+2+(j-1)*num.lat.class]*c(co.hidden.layer[,2])+ #r1c2
-                                                beta_fit$HS[n.mask+num.lat.class+3+(j-1)*num.lat.class]*c(co.hidden.layer[,3])+ #r1c3
-                                                beta_fit$HS[n.mask+num.lat.class+4+(j-1)*num.lat.class]*c(co.hidden.layer[,4]) #r1c4
+                                                 beta_fit$HS[n.mask+num.lat.class+1+(j-1)*num.lat.class]*c(co.hidden.layer[,1])+ #r1c1
+                                                 beta_fit$HS[n.mask+num.lat.class+2+(j-1)*num.lat.class]*c(co.hidden.layer[,2])+ #r1c2
+                                                 beta_fit$HS[n.mask+num.lat.class+3+(j-1)*num.lat.class]*c(co.hidden.layer[,3])+ #r1c3
+                                                 beta_fit$HS[n.mask+num.lat.class+4+(j-1)*num.lat.class]*c(co.hidden.layer[,4]) #r1c4
         )*c(relu.prime(hidden.layer[,j]))  #######this is wrong shttt. sex shouldnt be there, it should be the sigmoid
       }
       #Take batch average
@@ -503,9 +500,6 @@ for(e in 1:epoch){
         conj.beta[i,it.num] <- beta.scale
         conj.invgamma[i,it.num] <- prior.var[i]
       }
-      
-      
-      
     }
     
     it.num <- it.num +1
