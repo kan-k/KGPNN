@@ -4455,4 +4455,2357 @@ legend('topright',legend = c('Model', 'response sd'),lty=c(1),col=c('red','black
 
 
 Currently running
-dec6_sm_gpnn_bbig_init_bbs  39375948 => no saliency effect for interactions
+//dec6_sm_gpnn_bbig_init_bbs  39390924 => no saliency effect for interactions [NOT saved correctly for the coef, also no proper saliency]
+
+
+#7 dec
+##SM
+Best cases
+```{r}
+#IG with alpha = 6 and initialisation with mean
+num.it <-600
+runs <- c(1,3:10)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec5_covage_gpnn_bbig_init_bbs_lossM__jobid_",i,".csv")))[,1:num.it]
+ }
+#GPNN adj
+runs2 <-c(1,3:10)
+res.mat2 <- array(,dim=c(2,length(runs2),num.it))
+for(i in runs2){
+  res.mat2[,which(i==runs2),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec5_covage_gpnn_bbig_init_bbs_lossF__jobid_",i,".csv")))[,1:num.it]
+}
+#SGD
+runs3 <-c(1:6,8,10)
+res.mat3 <- array(,dim=c(2,length(runs3),num.it))
+for(i in runs3){
+  res.mat3[,which(i==runs3),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec6_sm_gpnn_bbig_init_bbs_lossM__jobid_",i,".csv")))[,1:num.it]
+} 
+# HSP
+runs4 <-c(1:6,8,10)
+res.mat4 <- array(,dim=c(2,length(runs4),num.it))
+for(i in runs4){
+  res.mat4[,which(i==runs4),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec6_sm_gpnn_bbig_init_bbs_lossF__jobid_",i,".csv")))[,1:num.it]
+}
+
+runs.hs <- 1:5
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/bnn2/res3/pile/re_test_may7_gpr_noscale_",i,".csv"))))
+}
+hs.train <- quantile(hs.int[,5],c(0,0))
+hs.test <-quantile(hs.int[,6],c(0,0))
+
+#define legends
+leglab <- c(paste0("LatentModel-MultAge-Male")
+                             ,paste0("LatentModel-MultAge-Female")
+                             ,paste0("MultLatentModel-MultAge-Male"), 'MultLatentModel-MultAge-Female')
+
+#Test
+res.iqr <- apply(res.mat[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+plot(x=1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Test RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,8))
+res.iqr2 <- apply(res.mat2[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=1, type = 'l')
+
+res.iqr3 <- apply(res.mat3[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x = 1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=1, type = 'l')
+res.iqr4 <- apply(res.mat4[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.test[2], col='magenta',lwd=2)
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+ 
+#Train
+res.iqr <- apply(res.mat[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+plot(x =1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Train RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,8))
+res.iqr2 <- apply(res.mat2[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=2, type = 'l')
+
+res.iqr3 <- apply(res.mat3[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x =1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=2, type = 'l')
+res.iqr4 <- apply(res.mat4[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.train[2], col='magenta',lwd=2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+abline(h=5.904118, lwd = 2)
+
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+``` 
+Median cases
+```{r}
+
+#define legends
+leglab <- c(paste0("LatentModel-MultAge-Male")
+                             ,paste0("LatentModel-MultAge-Female")
+                             ,paste0("MultLatentModel-MultAge-Male"), 'MultLatentModel-MultAge-Female')
+
+#Test
+res.iqr <- apply(res.mat[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0.5))
+plot(x=1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Test RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,8))
+res.iqr2 <- apply(res.mat2[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0.5))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=1, type = 'l')
+
+res.iqr3 <- apply(res.mat3[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0.5))
+lines(x = 1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=1, type = 'l')
+res.iqr4 <- apply(res.mat4[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0.5))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.test[2], col='magenta',lwd=2)
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+ 
+#Train
+res.iqr <- apply(res.mat[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0.5))
+plot(x =1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Train RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,8))
+res.iqr2 <- apply(res.mat2[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0.5))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=2, type = 'l')
+
+res.iqr3 <- apply(res.mat3[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0.5))
+lines(x =1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=2, type = 'l')
+res.iqr4 <- apply(res.mat4[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0.5))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.train[2], col='magenta',lwd=2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+abline(h=5.904118, lwd = 2)
+
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+``` 
+
+
+Currently running
+//dec7_sm_gpnn_bbig_init_bbs 39546898 ==> correctly save coef
+
+//dec8_sm_gpnn_bbig_init_bbs 39664492 ==> fixed saliency, can now get intersal1 to 4
+//dec9_sm_gpnn_bbig_init_bbs. 39938910 ==> saliency for interactions are based on the last minibatch only.
+
+#11 dec
+##Plot loss to pick run num
+Best cases
+```{r}
+#IG with alpha = 6 and initialisation with mean
+num.it <-600
+runs <- c(1,3:10)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec5_covage_gpnn_bbig_init_bbs_lossM__jobid_",i,".csv")))[,1:num.it]
+ }
+#GPNN adj
+runs2 <-c(1,3:10)
+res.mat2 <- array(,dim=c(2,length(runs2),num.it))
+for(i in runs2){
+  res.mat2[,which(i==runs2),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec5_covage_gpnn_bbig_init_bbs_lossF__jobid_",i,".csv")))[,1:num.it]
+}
+#SGD
+runs3 <- c(9,10)#(3,3)##1:10
+res.mat3 <- array(,dim=c(2,length(runs3),num.it))
+for(i in runs3){
+  res.mat3[,which(i==runs3),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec9_sm_gpnn_bbig_init_bbs_lossM__jobid_",i,".csv")))[,1:num.it]
+} 
+# HSP
+runs4 <- c(9,10)#9,10)#1:10
+res.mat4 <- array(,dim=c(2,length(runs4),num.it))
+for(i in runs4){
+  res.mat4[,which(i==runs4),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec9_sm_gpnn_bbig_init_bbs_lossF__jobid_",i,".csv")))[,1:num.it]
+}
+
+runs.hs <- 1:5
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/bnn2/res3/pile/re_test_may7_gpr_noscale_",i,".csv"))))
+}
+hs.train <- quantile(hs.int[,5],c(0,0))
+hs.test <-quantile(hs.int[,6],c(0,0))
+
+#define legends
+leglab <- c(paste0("LatentModel-MultAge-Male")
+                             ,paste0("LatentModel-MultAge-Female")
+                             ,paste0("MultLatentModel-MultAge-Male"), 'MultLatentModel-MultAge-Female')
+
+#Test
+res.iqr <- apply(res.mat[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+plot(x=1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Test RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,8))
+res.iqr2 <- apply(res.mat2[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=1, type = 'l')
+
+res.iqr3 <- apply(res.mat3[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x = 1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=1, type = 'l')
+res.iqr4 <- apply(res.mat4[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.test[2], col='magenta',lwd=2)
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+ 
+#Train
+res.iqr <- apply(res.mat[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+plot(x =1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Train RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,8))
+res.iqr2 <- apply(res.mat2[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=2, type = 'l')
+
+res.iqr3 <- apply(res.mat3[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x =1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=2, type = 'l')
+res.iqr4 <- apply(res.mat4[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.train[2], col='magenta',lwd=2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+abline(h=5.904118, lwd = 2)
+
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+``` 
+Median cases
+```{r}
+
+#define legends
+leglab <- c(paste0("LatentModel-MultAge-Male")
+                             ,paste0("LatentModel-MultAge-Female")
+                             ,paste0("MultLatentModel-MultAge-Male"), 'MultLatentModel-MultAge-Female')
+
+#Test
+res.iqr <- apply(res.mat[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0.5))
+plot(x=1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Test RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,8))
+res.iqr2 <- apply(res.mat2[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0.5))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=1, type = 'l')
+
+res.iqr3 <- apply(res.mat3[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0.5))
+lines(x = 1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=1, type = 'l')
+es.iqr4 <- apply(res.mat4[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0.5))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.test[2], col='magenta',lwd=2)
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+ 
+#Train
+res.iqr <- apply(res.mat[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0.5))
+plot(x =1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Train RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,8))
+res.iqr2 <- apply(res.mat2[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0.5))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=2, type = 'l')
+
+res.iqr3 <- apply(res.mat3[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0.5))
+lines(x =1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=2, type = 'l')
+res.iqr4 <- apply(res.mat4[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0.5))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.train[2], col='magenta',lwd=2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+abline(h=5.904118, lwd = 2)
+
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+``` 
+
+##Find best run
+```{r}
+num.it <-600
+runs <- 1:10
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec9_sm_gpnn_bbig_init_bbs_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+res1<- c(apply(res.mat[2,,], 1, FUN = min))
+plot(x=runs, y= sqrt(res1), col='red',lwd=2, type = 'b',main = "Minimum Test RMSE across 600 iterations", ylab="RMSE", xlab="Run Number",ylim=c(1,8))
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+legend('topright',legend = c('Model', 'response sd'),lty=c(1),col=c('red','black'))
+```
+
+From looking at the individual run's loss and saliency of runs 9 and 10, seems like the best run (9 and 10) suppresses all relu, resulting in empty saliency
+
+##Investigate coeff
+### Load in l.weights
+main latent coef
+```{r}
+runs <- c(6,9,10)
+res1 <- matrix(,ncol=64,nrow=length(runs))
+for (i in runs){ 
+  res1[which(i==runs),] <- unlist(read_feather(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec9_sm_gpnn_bbig_init_bbs_lweights__jobid_",i,".feather"))) #lweights is length 64
+}
+
+```
+
+runs 9 and 10 have abnormally LARGE coef for main effects of non-imaging input, ie softmax output (scale of 1000s)
+
+```{r}
+runs <- c(1:10)
+res1 <- matrix(,ncol=2,nrow=length(runs))
+res2 <- vector(mode = 'numeric')
+for (i in runs){ 
+  res1[which(i==runs),] <- unlist(c(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_nov16_cov_gpnn_bbig_init_bbs_coweights__jobid_",i,".csv"))))
+  res2 <- c(res2,read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_nov16_cov_gpnn_bbig_init_bbs_cobias__jobid_",i,".csv"))$x)
+}
+summary(res1)
+summary(res2)
+```
+
+by looking at 
+`read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec9_sm_gpnn_bbig_init_bbs_coweights__jobid_",6,".csv"))`
+`read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec9_sm_gpnn_bbig_init_bbs_coweights__jobid_",9,".csv"))`
+`read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec9_sm_gpnn_bbig_init_bbs_coweights__jobid_",10,".csv"))`
+9 and 10 have much higher magnitudes of co weights. run 6 has a very low magnitude of coweights.... but then it all get normalised tho?
+Same thing for cobias. 
+
+
+I am gonna have to test my hypothesis by timing data by the `weights` and put it through relu.
+
+Observe `hidden.cal`
+
+```{r}
+hid9 <- as.matrix(read_feather("/well/nichols/users/qcv214/KGPNN/pile/re_dec11_testhidden_sm_gpnn_bbig_init_bbs_hidden9__jobid_1.feather"))
+sum(c(hid9))
+
+hid10 <- as.matrix(read_feather("/well/nichols/users/qcv214/KGPNN/pile/re_dec11_testhidden_sm_gpnn_bbig_init_bbs_hidden10__jobid_1.feather"))
+sum(c(hid10))
+
+hid6 <- as.matrix(read_feather("/well/nichols/users/qcv214/KGPNN/pile/re_dec11_testhidden_sm_gpnn_bbig_init_bbs_hidden6__jobid_1.feather"))
+sum(c(hid6)) #Only 1 relu is active
+```
+
+
+
+22189 Townsend deprivation index ===> ukb_latest_Confs.tsv INSTEAD of ukb_latest_age.tsv.
+The info of age might need updating though... confs is more update. Need to do some data wrangling. to fix this.
+We could also try only using townsend top and bottom 10% to stratify data, to amke predictions, see if it will do anything beneficial.
+
+(head size/volume | centre of gradvity for head?)
+
+***I should keep track of the resulting class of each subject as well
+
+
+#13 December 
+
+1. Need to cross check if the data is still the same for Age.tsv and `/well/nichols/projects/UKB/SMS/ukb_latest-Confs.tsv`
+  1.2 26410:Index of Multiple Deprivation (England)	Indices of Multiple Deprivation  , 26427 Index of Multiple Deprivation (Scotland)	Indices of Multiple Deprivation  
+ 26426, Index of Multiple Deprivation (Wales)	Indices of Multiple Deprivation  
+ 
+ 1.3: I wonder if I should calibrate England, Scot and Wales to be on the same scale e.g. by standardising. Or should I just use the raw values?
+
+  1.4
+2. create a null model for non-imaging
+
+##Look at Confs
+```{r}
+confs.dat<-read.table(file = '/well/nichols/projects/UKB/SMS/ukb_latest-Confs.tsv', sep = '\t', header = TRUE) #46535 53
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/age_sex_strat.feather'))
+
+#check intersection of the new deprivation index for each country, check if the sum of non NA is equal to the nrow
+nrow(confs.dat) == sum(sum(!is.na(confs.dat$X26410.0.0))+sum(!is.na(confs.dat$X26427.0.0))+sum(!is.na(confs.dat$X26426.0.0)))
+#46535 vs 45429 ===> meaning 1000 rows have all NA
+
+#I will create a new combined column that takes the sum and ignore the NA
+#length(apply(cbind(confs.dat$X26410.0.0,confs.dat$X26427.0.0,confs.dat$X26426.0.0),1,FUN = sum,na.rm=TRUE))
+confs.dat$combDepInd <- apply(cbind(confs.dat$X26410.0.0,confs.dat$X26427.0.0,confs.dat$X26426.0.0),1,FUN = mean,na.rm=TRUE) 
+# if we use `sum` instead of `mean` above then it will convert NA to 0. Using `mean` will keep `mean` the same.
+#sum(is.na(confs.dat$combDepInd)) = 0 wtf
+```
+
+impute 3% of the missing index using mean
+I will use MEDIAN since there is no other correlated data to predict this
+```{r}
+age_tab$DepInd <- vector(mode='numeric',length = nrow(age_tab))
+for(i in 1:length(age_tab$id)){
+  age_tab$DepInd[i] <- confs.dat$combDepInd[confs.dat$eid_8107==sub(".", "",age_tab$id[i])]
+} 
+summary(age_tab$DepInd) #NA's = 117 #only 3% is missing 
+
+#Lets impute using means perhaps.
+median_value <- median(age_tab$DepInd, na.rm = TRUE)
+age_tab$DepInd[is.na(age_tab$DepInd)] <- median_value
+
+#write_feather(age_tab, '/well/nichols/users/qcv214/KGPNN/age_sex_strat_depind.feather')
+```
+
+```{r}
+boxplot(age_tab$DepInd~ as.factor(age_tab$sex), 
+        xlab = "Sex", 
+        ylab = "Values", 
+        main = "Boxplot of Values by Sex")
+```
+```{r}
+library(ggplot2)
+# Assuming dep.vec and sex are defined as before
+dep.vec_df <- data.frame(value = age_tab$DepInd, sex = as.factor(age_tab$sex))
+
+# Create the histogram using ggplot
+ggplot(dep.vec_df, aes(x = value, fill = sex)) +
+  geom_histogram(position = "identity", alpha = 0.5, bins = 10) +
+  labs(title = "Histogram of Values by Sex", x = "Values", y = "Frequency") +
+  scale_fill_manual(values = c("red", "blue")) +
+  theme_minimal()
+```
+Male and female have similar distributions. 
+
+```{r}
+# Assuming dep.vec is your numeric vector
+dep.vec <- age_tab$DepInd
+# Calculate the quantile thresholds (0%, 10%, 20%, ..., 100%)
+quantile_thresholds <- quantile(dep.vec, probs = seq(0, 1, by = 0.1))
+# Split dep.vec into quantiles
+dep.vec_quantiles <- cut(dep.vec, breaks = quantile_thresholds, include.lowest = TRUE, labels = FALSE)
+# Print the quantile group for each value in dep.vec
+dep.vec_quantiles
+```
+
+
+Currently running
+dec13_sm_intercept_gpnn_bbig_init 40532450 ==> intercept only. only cobias and NOT co.weights
+[ran but not saved] dec13_sm_ones_gpnn_bbig_init 40557261 ==> co.dat is just nine 1's.  ===> ran successfully but not saved?? I can't spot why
+dec13_sm_depind_gpnn_bbig_init 40557064 => note that the quantiles for deprivation index only make use of the train data.
+
+//dec13_sm_ones_gpnn_bbig_init 40603561 ==> 1 epoch to test saving => everything is fine
+dec13_sm_ones_gpnn_bbig_init  40604094 ==> 200 epochs, let's see if it works
+
+I should try saving class assignments in the `bbs` version. Then i can observe stability of class assignment for each subject. => cant do that since classes are unordered
+
+#14 dec 
+## sm intercept
+```{r}
+runs <- c(1:6,8:10)
+res1 <- vector(mode = 'numeric')
+for (i in runs){ 
+  res1 <- c(res1,read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec13_sm_intercept_gpnn_bbig_init_minloss__jobid_",i,".csv"))$x)
+}
+plot(x=runs, y= sqrt(res1), col='red',lwd=2, type = 'b',main = "Minimum Test RMSE across 800 iterations", ylab="RMSE", xlab="Run Number",ylim=c(1,8))
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+legend('topright',legend = c('Model', 'response sd'),lty=c(1),col=c('red','black'))
+```
+This is useless. I swear it just means predicting everyone to be one class
+
+
+## sm depind
+```{r}
+runs <- c(2:4,6,9)
+res1 <- vector(mode = 'numeric')
+for (i in runs){ 
+  res1 <- c(res1,read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec13_sm_depind_gpnn_bbig_init_minloss__jobid_",i,".csv"))$x)
+}
+plot(x=runs, y= sqrt(res1), col='red',lwd=2, type = 'b',main = "Minimum Test RMSE across 800 iterations", ylab="RMSE", xlab="Run Number",ylim=c(1,8))
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+legend('topright',legend = c('Model', 'response sd'),lty=c(1),col=c('red','black'))
+```
+This is also not working. Very weird. 
+##Let's look at min loss
+```{r}
+#IG with alpha = 6 and initialisation with mean
+num.it <-800
+runs <-  c(2:4,6,9)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec13_sm_depind_gpnn_bbig_init_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+runs.hs <- 1:5
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/bnn2/res3/pile/re_test_may7_gpr_noscale_",i,".csv"))))
+}
+hs.train <- quantile(hs.int[,5],c(0.25,0.5,0.75))
+hs.test <-quantile(hs.int[,6],c(0.25,0.5,0.75))
+
+#define legends
+leglab <- c(paste0("GenderModel-Male")
+                             ,paste0("GenderModel-Female")
+                             ,paste0("LatentModel-Dummy-Male"), 'LatentModel-Dummy-Female')
+
+#Test
+res.iqr <- apply(res.mat[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+plot(x=1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Test RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,8))
+abline(h=hs.test[2], col='magenta',lwd=2)
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+ 
+#Train
+res.iqr <- apply(res.mat[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+plot(x =1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Train RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,8))
+abline(h=hs.train[2], col='magenta',lwd=2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+abline(h=5.904118, lwd = 2)
+
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+``` 
+It can learn during training but test seems to be stuck. Let's run bbs anyway
+
+//dec14_sm_intercept_gpnn_bbig_init_bbs. 40637582
+//dec14_sm_depind_gpnn_bbig_init_bbs. 40638076
+
+#15 dec
+##Plot 
+```{r}
+#IG with alpha = 6 and initialisation with mean
+num.it <-600
+runs <- 1:10
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec14_sm_intercept_gpnn_bbig_init_bbs_lossM__jobid_",i,".csv")))[,1:num.it]
+ }
+#GPNN adj
+runs2 <- 1:10
+res.mat2 <- array(,dim=c(2,length(runs2),num.it))
+for(i in runs2){
+  res.mat2[,which(i==runs2),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec14_sm_intercept_gpnn_bbig_init_bbs_lossF__jobid_",i,".csv")))[,1:num.it]
+}
+#SGD
+runs3 <- 2:10
+res.mat3 <- array(,dim=c(2,length(runs3),num.it))
+for(i in runs3){
+  res.mat3[,which(i==runs3),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec14_sm_depind_gpnn_bbig_init_bbs_lossM__jobid_",i,".csv")))[,1:num.it]
+} 
+# HSP
+runs4 <- 2:10
+res.mat4 <- array(,dim=c(2,length(runs4),num.it))
+for(i in runs4){
+  res.mat4[,which(i==runs4),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec14_sm_depind_gpnn_bbig_init_bbs_lossF__jobid_",i,".csv")))[,1:num.it]
+}
+
+runs.hs <- 1:5
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/bnn2/res3/pile/re_test_may7_gpr_noscale_",i,".csv"))))
+}
+hs.train <- quantile(hs.int[,5],c(0,0))
+hs.test <-quantile(hs.int[,6],c(0,0))
+
+#define legends
+leglab <- c(paste0("LatentModel-MultAge-Male")
+                             ,paste0("LatentModel-MultAge-Female")
+                             ,paste0("MultLatentModel-MultAge-Male"), 'MultLatentModel-MultAge-Female')
+
+#Test
+res.iqr <- apply(res.mat[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+plot(x=1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Test RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,8))
+res.iqr2 <- apply(res.mat2[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=1, type = 'l')
+
+res.iqr3 <- apply(res.mat3[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x = 1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=1, type = 'l')
+res.iqr4 <- apply(res.mat4[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.test[2], col='magenta',lwd=2)
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+ 
+#Train
+res.iqr <- apply(res.mat[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+plot(x =1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Train RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,8))
+res.iqr2 <- apply(res.mat2[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=2, type = 'l')
+
+res.iqr3 <- apply(res.mat3[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x =1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=2, type = 'l')
+res.iqr4 <- apply(res.mat4[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.train[2], col='magenta',lwd=2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+abline(h=5.904118, lwd = 2)
+
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+``` 
+Median cases
+```{r}
+
+#define legends
+leglab <- c(paste0("LatentModel-MultAge-Male")
+                             ,paste0("LatentModel-MultAge-Female")
+                             ,paste0("MultLatentModel-MultAge-Male"), 'MultLatentModel-MultAge-Female')
+
+#Test
+res.iqr <- apply(res.mat[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0.5))
+plot(x=1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Test RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,8))
+res.iqr2 <- apply(res.mat2[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0.5))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=1, type = 'l')
+
+res.iqr3 <- apply(res.mat3[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0.5))
+lines(x = 1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=1, type = 'l')
+es.iqr4 <- apply(res.mat4[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0.5))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.test[2], col='magenta',lwd=2)
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+ 
+#Train
+res.iqr <- apply(res.mat[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0.5))
+plot(x =1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Train RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,8))
+res.iqr2 <- apply(res.mat2[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0.5))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=2, type = 'l')
+
+res.iqr3 <- apply(res.mat3[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0.5))
+lines(x =1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=2, type = 'l')
+res.iqr4 <- apply(res.mat4[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0.5))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.train[2], col='magenta',lwd=2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+abline(h=5.904118, lwd = 2)
+
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+``` 
+It's not working.
+
+###Let's investigate class assignment... i think all got assigned to same class
+... lost some work
+using summary and table
+Intercept assign all to the same classs => not surprising
+DepInd assign exactly half to one and half to another
+...
+
+I am going to try using normal softmax
+Currently running
+...
+dec15_sm_depind_gpnn_bbig_init. 40764913
+dec15_sm_ones_gpnn_bbig_init. 40764966
+dec15_sm_intercept_gpnn_bbig_init. 40764976
+
+
+#dec 16
+## sm intercept
+```{r}
+runs <- c(1,2,6)
+res1 <- vector(mode = 'numeric')
+for (i in runs){ 
+  res1 <- c(res1,read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec15_sm_intercept_gpnn_bbig_init_minloss__jobid_",i,".csv"))$x)
+}
+plot(x=runs, y= sqrt(res1), col='red',lwd=2, type = 'b',main = "Minimum Test RMSE across 800 iterations", ylab="RMSE", xlab="Run Number",ylim=c(1,8))
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+legend('topright',legend = c('Model', 'response sd'),lty=c(1),col=c('red','black'))
+```
+## sm ones
+```{r}
+runs <- c(2,3,6,7,8)
+res1 <- vector(mode = 'numeric')
+for (i in runs){ 
+  res1 <- c(res1,read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec15_sm_ones_gpnn_bbig_init_minloss__jobid_",i,".csv"))$x)
+}
+plot(x=runs, y= sqrt(res1), col='red',lwd=2, type = 'b',main = "Minimum Test RMSE across 800 iterations", ylab="RMSE", xlab="Run Number",ylim=c(1,8))
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+legend('topright',legend = c('Model', 'response sd'),lty=c(1),col=c('red','black'))
+```
+## sm depind
+```{r}
+runs <- c(1,3,4,7,8,9)
+res1 <- vector(mode = 'numeric')
+for (i in runs){ 
+  res1 <- c(res1,read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec15_sm_depind_gpnn_bbig_init_minloss__jobid_",i,".csv"))$x)
+}
+plot(x=runs, y= sqrt(res1), col='red',lwd=2, type = 'b',main = "Minimum Test RMSE across 800 iterations", ylab="RMSE", xlab="Run Number",ylim=c(1,8))
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+legend('topright',legend = c('Model', 'response sd'),lty=c(1),col=c('red','black'))
+```
+
+Why does it not have any effect at all
+
+
+Currently
+dec16_sm_intercept_gpnn_bbig_init_bbs  40934707
+dec16_sm_ones_gpnn_bbig_init_bbs.  40934713
+dec16_sm_depind_gpnn_bbig_init_bbs. 40934733
+
+
+#17 dec 
+
+##Plot intercept vs depind
+```{r}
+#IG with alpha = 6 and initialisation with mean
+num.it <-600
+runs <- c(1,2,4:6,8:10)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec16_sm_intercept_gpnn_bbig_init_bbs_lossM__jobid_",i,".csv")))[,1:num.it]
+ }
+#GPNN adj
+runs2 <-c(1,2,4:6,8:10)
+res.mat2 <- array(,dim=c(2,length(runs2),num.it))
+for(i in runs2){
+  res.mat2[,which(i==runs2),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec16_sm_intercept_gpnn_bbig_init_bbs_lossF__jobid_",i,".csv")))[,1:num.it]
+}
+#SGD
+runs3 <- c(1,5:10)
+res.mat3 <- array(,dim=c(2,length(runs3),num.it))
+for(i in runs3){
+  res.mat3[,which(i==runs3),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec16_sm_depind_gpnn_bbig_init_bbs_lossM__jobid_",i,".csv")))[,1:num.it]
+} 
+# HSP
+runs4 <- c(1,5:10)
+res.mat4 <- array(,dim=c(2,length(runs4),num.it))
+for(i in runs4){
+  res.mat4[,which(i==runs4),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec16_sm_depind_gpnn_bbig_init_bbs_lossF__jobid_",i,".csv")))[,1:num.it]
+}
+
+runs.hs <- 1:5
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/bnn2/res3/pile/re_test_may7_gpr_noscale_",i,".csv"))))
+}
+hs.train <- quantile(hs.int[,5],c(0,0))
+hs.test <-quantile(hs.int[,6],c(0,0))
+
+#define legends
+leglab <- c(paste0("LatentModel-MultAge-Male")
+                             ,paste0("LatentModel-MultAge-Female")
+                             ,paste0("MultLatentModel-MultAge-Male"), 'MultLatentModel-MultAge-Female')
+
+#Test
+res.iqr <- apply(res.mat[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+plot(x=1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Test RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,8))
+res.iqr2 <- apply(res.mat2[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=1, type = 'l')
+
+res.iqr3 <- apply(res.mat3[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x = 1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=1, type = 'l')
+res.iqr4 <- apply(res.mat4[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.test[2], col='magenta',lwd=2)
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+ 
+#Train
+res.iqr <- apply(res.mat[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+plot(x =1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Train RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,8))
+res.iqr2 <- apply(res.mat2[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=2, type = 'l')
+
+res.iqr3 <- apply(res.mat3[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x =1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=2, type = 'l')
+res.iqr4 <- apply(res.mat4[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.train[2], col='magenta',lwd=2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+abline(h=5.904118, lwd = 2)
+
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+``` 
+##Plot intercept vs ones
+```{r}
+#IG with alpha = 6 and initialisation with mean
+num.it <-600
+runs <- c(1,2,4:6,8:10)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec16_sm_intercept_gpnn_bbig_init_bbs_lossM__jobid_",i,".csv")))[,1:num.it]
+ }
+#GPNN adj
+runs2 <-c(1,2,4:6,8:10)
+res.mat2 <- array(,dim=c(2,length(runs2),num.it))
+for(i in runs2){
+  res.mat2[,which(i==runs2),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec16_sm_intercept_gpnn_bbig_init_bbs_lossF__jobid_",i,".csv")))[,1:num.it]
+}
+#SGD
+runs3 <- c(1:3,7:10)
+res.mat3 <- array(,dim=c(2,length(runs3),num.it))
+for(i in runs3){
+  res.mat3[,which(i==runs3),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec16_sm_ones_gpnn_bbig_init_bbs_lossM__jobid_",i,".csv")))[,1:num.it]
+} 
+# HSP
+runs4 <- c(1:3,7:10)
+res.mat4 <- array(,dim=c(2,length(runs4),num.it))
+for(i in runs4){
+  res.mat4[,which(i==runs4),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec16_sm_ones_gpnn_bbig_init_bbs_lossF__jobid_",i,".csv")))[,1:num.it]
+}
+
+runs.hs <- 1:5
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/bnn2/res3/pile/re_test_may7_gpr_noscale_",i,".csv"))))
+}
+hs.train <- quantile(hs.int[,5],c(0,0))
+hs.test <-quantile(hs.int[,6],c(0,0))
+
+#define legends
+leglab <- c(paste0("LatentModel-MultAge-Male")
+                             ,paste0("LatentModel-MultAge-Female")
+                             ,paste0("MultLatentModel-MultAge-Male"), 'MultLatentModel-MultAge-Female')
+
+#Test
+res.iqr <- apply(res.mat[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+plot(x=1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Test RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,8))
+res.iqr2 <- apply(res.mat2[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=1, type = 'l')
+
+res.iqr3 <- apply(res.mat3[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x = 1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=1, type = 'l')
+res.iqr4 <- apply(res.mat4[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.test[2], col='magenta',lwd=2)
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+ 
+#Train
+res.iqr <- apply(res.mat[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+plot(x =1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Train RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,8))
+res.iqr2 <- apply(res.mat2[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=2, type = 'l')
+
+res.iqr3 <- apply(res.mat3[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x =1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=2, type = 'l')
+res.iqr4 <- apply(res.mat4[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.train[2], col='magenta',lwd=2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+abline(h=5.904118, lwd = 2)
+
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+``` 
+
+Observe class assignment
+###intercept
+```{r}
+train.test.ind <- list()
+train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/sex_test_index.csv')$x
+train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/sex_train_index.csv')$x
+n.train <- length(train.test.ind$train)
+
+success.run <- c(1,2,4:6,8:10)
+
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/re_dec16_sm_intercept_gpnn_bbig_init_bbs_inpred__jobid_',i,'.feather'))))[,3]
+  dat.in <- tail(dat.in,n.train)
+  print(paste0('run: ',i))
+  print(table(dat.in))
+}
+```
+
+###ones
+```{r}
+train.test.ind <- list()
+train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/sex_test_index.csv')$x
+train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/sex_train_index.csv')$x
+n.train <- length(train.test.ind$train)
+
+success.run <- c(1:3,7:10)
+
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/re_dec16_sm_ones_gpnn_bbig_init_bbs_inpred__jobid_',i,'.feather'))))[,3]
+  dat.in <- tail(dat.in,n.train)
+  print(paste0('run: ',i))
+  print(table(dat.in))
+}
+```
+
+Let's look at head
+```{r}
+train.test.ind <- list()
+train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/sex_test_index.csv')$x
+train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/sex_train_index.csv')$x
+n.train <- length(train.test.ind$train)
+
+success.run <- c(1:3,7:10)
+
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/re_dec16_sm_ones_gpnn_bbig_init_bbs_inpred__jobid_',i,'.feather'))))[,3]
+  dat.in <- head(dat.in,n.train)
+  print(paste0('run: ',i))
+  print(table(dat.in))
+}
+```
+
+###depind
+```{r}
+success.run <- c(1,5:10)
+
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/re_dec16_sm_depind_gpnn_bbig_init_bbs_inpred__jobid_',i,'.feather'))))[,3]
+  dat.in <- tail(dat.in,n.train)
+  print(paste0('run: ',i))
+  print(table(dat.in))
+}
+```
+
+Let's look at head
+```{r}
+success.run <- c(1,5:10)
+
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/re_dec16_sm_depind_gpnn_bbig_init_bbs_inpred__jobid_',i,'.feather'))))[,3]
+  dat.in <- head(dat.in,n.train)
+  print(paste0('run: ',i))
+  print(table(dat.in))
+}
+```
+There is some updating here in depind. Why does it not get better though...
+
+Let's look at the minimum achieved in different runs for `depind`
+##Find best run
+```{r}
+num.it <-600
+runs <- c(1,5:10)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec16_sm_depind_gpnn_bbig_init_bbs_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+res1<- c(apply(res.mat[2,,], 1, FUN = min))
+plot(x=runs, y= sqrt(res1), col='red',lwd=2, type = 'b',main = "Minimum Test RMSE across 600 iterations", ylab="RMSE", xlab="Run Number",ylim=c(1,8))
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+legend('topright',legend = c('Model', 'response sd'),lty=c(1),col=c('red','black'))
+```
+
+It's weird because they have different class assignments but achieve the same RMSE
+
+###Look at the weights?
+#### Load in l.weights
+main latent coef
+```{r}
+runs <- c(1,5:10)
+res1 <- matrix(,ncol=64,nrow=length(runs))
+for (i in runs){ 
+  res1[which(i==runs),] <- unlist(read_feather(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec16_sm_depind_gpnn_bbig_init_bbs_lweights__jobid_",i,".feather"))) #lweights is length 64
+}
+```
+
+There is *nothing* abnormal about the l.weights. The imaging effect of main non-imaging seem to be huge across all runs but that's normal for a class having just 1's
+
+
+```{r}
+
+read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec16_sm_depind_gpnn_bbig_init_bbs_coweights__jobid_",i,".csv"))
+read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec16_sm_depind_gpnn_bbig_init_bbs_cobias__jobid_",i,".csv"))
+# runs <- c(1,5:10)
+# res1 <- matrix(,ncol=4,nrow=length(runs))
+# res2 <- vector(mode = 'numeric')
+# for (i in runs){ 
+#   res1[which(i==runs),] <- unlist(c(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec16_sm_depind_gpnn_bbig_init_bbs_coweights__jobid_",i,".csv"))))
+#   res2 <- c(res2,read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec16_sm_depind_gpnn_bbig_init_bbs_cobias__jobid_",i,".csv"))$x)
+# }
+# summary(res1)
+# summary(res2)
+```
+
+Nothing seems to be wrong with the co.weights and co.bias. Especially when class assignments are being done.
+
+###Look at class assignment for held-out
+```{r}
+success.run <- c(1,5:10)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sex_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/re_dec16_sm_depind_gpnn_bbig_init_bbs_outpred__jobid_',i,'.feather'))))[,3]
+  dat.in <- tail(dat.in,n.test)
+  print(paste0('run: ',i))
+  print(table(dat.in))
+}
+```
+
+Class assignments of held out are similar to train.  Also note that class assignments do not change in the last 5 epochs.
+
+
+##Plot depind against gender interaction model
+```{r}
+#IG with alpha = 6 and initialisation with mean
+num.it <-600
+runs <- c(1,4:10)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_nov9_gender_gpnn_bbig_init_bbs_t_lossM__jobid_",i,".csv")))[,1:num.it]
+ }
+#GPNN adj
+runs2 <-c(1,4:10)
+res.mat2 <- array(,dim=c(2,length(runs2),num.it))
+for(i in runs2){
+  res.mat2[,which(i==runs2),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_nov9_gender_gpnn_bbig_init_bbs_t_lossF__jobid_",i,".csv")))[,1:num.it]
+}
+#SGD
+runs3 <- c(1,5:10)
+res.mat3 <- array(,dim=c(2,length(runs3),num.it))
+for(i in runs3){
+  res.mat3[,which(i==runs3),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec16_sm_depind_gpnn_bbig_init_bbs_lossM__jobid_",i,".csv")))[,1:num.it]
+} 
+# HSP
+runs4 <- c(1,5:10)
+res.mat4 <- array(,dim=c(2,length(runs4),num.it))
+for(i in runs4){
+  res.mat4[,which(i==runs4),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec16_sm_depind_gpnn_bbig_init_bbs_lossF__jobid_",i,".csv")))[,1:num.it]
+}
+
+runs.hs <- 1:5
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/bnn2/res3/pile/re_test_may7_gpr_noscale_",i,".csv"))))
+}
+hs.train <- quantile(hs.int[,5],c(0.25,0.5,0.75))
+hs.test <-quantile(hs.int[,6],c(0.25,0.5,0.75))
+
+#define legends
+leglab <- c(paste0("GenderModel-Male")
+                             ,paste0("GenderModel-Female")
+                             ,paste0("MultiLatent-Male"), 'MultiLatent-Female')
+
+#Test
+res.iqr <- apply(res.mat[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+plot(x=1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Test RMSE", ylab="RMSE", xlab="iteration",ylim=c(4,5.5))
+res.iqr2 <- apply(res.mat2[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=1, type = 'l')
+
+res.iqr3 <- apply(res.mat3[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=1, type = 'l')
+res.iqr4 <- apply(res.mat4[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.test[2], col='magenta',lwd=2)
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+ 
+#Train
+res.iqr <- apply(res.mat[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+plot(x =1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Train RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,8))
+res.iqr2 <- apply(res.mat2[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=2, type = 'l')
+
+res.iqr3 <- apply(res.mat3[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x =1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=2, type = 'l')
+res.iqr4 <- apply(res.mat4[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.train[2], col='magenta',lwd=2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+abline(h=5.904118, lwd = 2)
+
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+``` 
+
+Let's look some activated RELU
+```{r}
+hid9 <- as.matrix(read_feather("/well/nichols/users/qcv214/KGPNN/pile/re_dec18_testhidden_sm_depind_gpnn_bbig_init_bbs_hidden8__jobid_1.feather"))
+sum(c(hid9))
+
+hid10 <- as.matrix(read_feather("/well/nichols/users/qcv214/KGPNN/pile/re_dec18_testhidden_sm_depind_gpnn_bbig_init_bbs_hidden1__jobid_1.feather"))
+sum(c(hid10))
+
+hid6 <- as.matrix(read_feather("/well/nichols/users/qcv214/KGPNN/pile/re_dec18_testhidden_sm_depind_gpnn_bbig_init_bbs_hidden9__jobid_1.feather"))
+sum(c(hid6)) #Only 1 relu is active
+```
+
+Everything seems well-behaved.... multiple activated regions unlike before.
+
+
+Currently running
+dec18_sm_depind_2class_gpnn_bbig_init. 41134556 ==> 2 subgroups
+
+
+
+#18 dec
+##Meeting with Tom
+Tom mention using only top and bottom dep index, also uses this as predictors to validate
+I should perhaps try ridge or lasso regression on the data, e.g. imaging + sex + categorical.
+
+Plot min
+```{r}
+runs <- c(1,3,4,5,7,9,10)
+res1 <- vector(mode = 'numeric')
+for (i in runs){ 
+  res1 <- c(res1,read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec18_sm_depind_2class_gpnn_bbig_init_minloss__jobid_",i,".csv"))$x)
+}
+plot(x=runs, y= sqrt(res1), col='red',lwd=2, type = 'b',main = "Minimum Test RMSE across 800 iterations", ylab="RMSE", xlab="Run Number",ylim=c(1,8))
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+legend('topright',legend = c('Model', 'response sd'),lty=c(1),col=c('red','black'))
+```
+
+[failed when saving - saliency] dec19_sm_depind_2class_gpnn_bbig_init_bbs. 41149238
+
+//dec19_sm_depind_lown_gpnn_bbig_init 41150116 ==> 500 training samples.
+//re_dec19_lasso_decind and re_dec19_ridge_decind 41149999
+
+```{r}
+#lasso
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec19_lasso_decind_noscale_",i,".csv"))))
+}
+(hs.train <- quantile(hs.int[,1],c(0.25,0.5,0.75)))
+(hs.test <-quantile(hs.int[,3],c(0.25,0.5,0.75)))
+
+(hs.train <- quantile(hs.int[,5],c(0.25,0.5,0.75)))
+(hs.test <-quantile(hs.int[,6],c(0.25,0.5,0.75)))
+
+```
+
+```{r}
+#ridge
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec19_ridge_decind_noscale_",i,".csv"))))
+}
+(hs.train <- quantile(hs.int[,1],c(0.25,0.5,0.75)))
+(hs.test <-quantile(hs.int[,3],c(0.25,0.5,0.75)))
+
+(hs.train <- quantile(hs.int[,5],c(0.25,0.5,0.75)))
+(hs.test <-quantile(hs.int[,6],c(0.25,0.5,0.75)))
+
+```
+
+Plot min 500 training
+```{r}
+runs <- 1:10
+res1 <- vector(mode = 'numeric')
+for (i in runs){ 
+  res1 <- c(res1,read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec19_sm_depind_lown_gpnn_bbig_init_minloss__jobid_",i,".csv"))$x)
+}
+plot(x=runs, y= sqrt(res1), col='red',lwd=2, type = 'b',main = "Minimum Test RMSE across 800 iterations", ylab="RMSE", xlab="Run Number",ylim=c(1,8))
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+legend('topright',legend = c('Model', 'response sd'),lty=c(1),col=c('red','black'))
+```
+Even worse....
+
+//dec19_sm_depind_2class_gpnn_bbig_init_bbs 41174120
+//dec19_sm_depind_lown_gpnn_bbig_init_bbs 41174389
+
+#20 dec
+
+##2 classes vs 4 classes
+```{r}
+#IG with alpha = 6 and initialisation with mean
+num.it <-600
+runs <- 1:10
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec19_sm_depind_2class_gpnn_bbig_init_bbs_lossM__jobid_",i,".csv")))[,1:num.it]
+ }
+#GPNN adj
+runs2 <- 1:10
+res.mat2 <- array(,dim=c(2,length(runs2),num.it))
+for(i in runs2){
+  res.mat2[,which(i==runs2),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec19_sm_depind_2class_gpnn_bbig_init_bbs_lossF__jobid_",i,".csv")))[,1:num.it]
+}
+#SGD
+runs3 <- c(1,5:10)
+res.mat3 <- array(,dim=c(2,length(runs3),num.it))
+for(i in runs3){
+  res.mat3[,which(i==runs3),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec16_sm_depind_gpnn_bbig_init_bbs_lossM__jobid_",i,".csv")))[,1:num.it]
+} 
+# HSP
+runs4 <- c(1,5:10)
+res.mat4 <- array(,dim=c(2,length(runs4),num.it))
+for(i in runs4){
+  res.mat4[,which(i==runs4),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec16_sm_depind_gpnn_bbig_init_bbs_lossF__jobid_",i,".csv")))[,1:num.it]
+}
+
+runs.hs <- 1:5
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/bnn2/res3/pile/re_test_may7_gpr_noscale_",i,".csv"))))
+}
+hs.train <- quantile(hs.int[,5],c(0.25,0.5,0.75))
+hs.test <-quantile(hs.int[,6],c(0.25,0.5,0.75))
+
+#define legends
+leglab <- c(paste0("2LatentModel-Male")
+                             ,paste0("2LatentModel-Female")
+                             ,paste0("4Latent-Male"), '4Latent-Female')
+
+#Test
+res.iqr <- apply(res.mat[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+plot(x=1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Test RMSE", ylab="RMSE", xlab="iteration",ylim=c(4,5.5))
+res.iqr2 <- apply(res.mat2[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=1, type = 'l')
+
+res.iqr3 <- apply(res.mat3[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=1, type = 'l')
+res.iqr4 <- apply(res.mat4[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.test[2], col='magenta',lwd=2)
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+ 
+#Train
+res.iqr <- apply(res.mat[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+plot(x =1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Train RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,8))
+res.iqr2 <- apply(res.mat2[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=2, type = 'l')
+
+res.iqr3 <- apply(res.mat3[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x =1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=2, type = 'l')
+res.iqr4 <- apply(res.mat4[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.train[2], col='magenta',lwd=2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+abline(h=5.904118, lwd = 2)
+
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+``` 
+ What if I double...? epochs, 150 epochs only uses 10 hours
+
+Plotting 500 train vs 2k train
+```{r}
+#IG with alpha = 6 and initialisation with mean
+num.it <-600
+runs <- c(1:2,4:10)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec19_sm_depind_lown_gpnn_bbig_init_bbs_lossM__jobid_",i,".csv")))[,1:num.it]
+ }
+#GPNN adj
+runs2 <- c(1:2,4:10)
+res.mat2 <- array(,dim=c(2,length(runs2),num.it))
+for(i in runs2){
+  res.mat2[,which(i==runs2),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec19_sm_depind_lown_gpnn_bbig_init_bbs_lossF__jobid_",i,".csv")))[,1:num.it]
+}
+#SGD
+runs3 <- c(1,5:10)
+res.mat3 <- array(,dim=c(2,length(runs3),num.it))
+for(i in runs3){
+  res.mat3[,which(i==runs3),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec16_sm_depind_gpnn_bbig_init_bbs_lossM__jobid_",i,".csv")))[,1:num.it]
+} 
+# HSP
+runs4 <- c(1,5:10)
+res.mat4 <- array(,dim=c(2,length(runs4),num.it))
+for(i in runs4){
+  res.mat4[,which(i==runs4),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec16_sm_depind_gpnn_bbig_init_bbs_lossF__jobid_",i,".csv")))[,1:num.it]
+}
+
+runs.hs <- 1:5
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/bnn2/res3/pile/re_test_may7_gpr_noscale_",i,".csv"))))
+}
+hs.train <- quantile(hs.int[,5],c(0.25,0.5,0.75))
+hs.test <-quantile(hs.int[,6],c(0.25,0.5,0.75))
+
+#define legends
+leglab <- c(paste0("2LatentModel-Male")
+                             ,paste0("2LatentModel-Female")
+                             ,paste0("4Latent-Male"), '4Latent-Female')
+
+#Test
+res.iqr <- apply(res.mat[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+plot(x=1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Test RMSE", ylab="RMSE", xlab="iteration",ylim=c(4,5.5))
+res.iqr2 <- apply(res.mat2[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=1, type = 'l')
+
+res.iqr3 <- apply(res.mat3[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=1, type = 'l')
+res.iqr4 <- apply(res.mat4[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.test[2], col='magenta',lwd=2)
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+ 
+#Train
+res.iqr <- apply(res.mat[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+plot(x =1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Train RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,8))
+res.iqr2 <- apply(res.mat2[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=2, type = 'l')
+
+res.iqr3 <- apply(res.mat3[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x =1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=2, type = 'l')
+res.iqr4 <- apply(res.mat4[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.train[2], col='magenta',lwd=2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+abline(h=5.904118, lwd = 2)
+
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+``` 
+ Doesn't make sense. Reducing training samples to 1/4 increase RMSE during parameter search, but achieve lower RMSE during optimisation. 
+ 
+ 
+ 
+ Running
+// dec20_sm_depind_2class_gpnn_bbig_init_bbs 41199935 => 300 epochs
+// dec20_sm_depind_lown_gpnn_bbig_init_bbs 41223344 => 300 epochs
+// dec20_sm_depind_gpnn_bbig_init_bbs 41223793 => 300 epochs
+
+#20 dec
+Observe 300 epochs 
+
+500 train vs 2k train
+```{r}
+#IG with alpha = 6 and initialisation with mean
+num.it <-1200
+runs <- c(5,8,9,10)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec20_sm_depind_lown_gpnn_bbig_init_bbs_lossM__jobid_",i,".csv")))[,1:num.it]
+ }
+#GPNN adj
+runs2 <- c(5,8,9,10)
+res.mat2 <- array(,dim=c(2,length(runs2),num.it))
+for(i in runs2){
+  res.mat2[,which(i==runs2),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec20_sm_depind_lown_gpnn_bbig_init_bbs_lossF__jobid_",i,".csv")))[,1:num.it]
+}
+#SGD
+runs3 <- c(2,3,9,10)
+res.mat3 <- array(,dim=c(2,length(runs3),num.it))
+for(i in runs3){
+  res.mat3[,which(i==runs3),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec20_sm_depind_gpnn_bbig_init_bbs_lossM__jobid_",i,".csv")))[,1:num.it]
+} 
+# HSP
+runs4 <-  c(2,3,9,10)
+res.mat4 <- array(,dim=c(2,length(runs4),num.it))
+for(i in runs4){
+  res.mat4[,which(i==runs4),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec20_sm_depind_gpnn_bbig_init_bbs_lossF__jobid_",i,".csv")))[,1:num.it]
+}
+
+runs.hs <- 1:5
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/bnn2/res3/pile/re_test_may7_gpr_noscale_",i,".csv"))))
+}
+hs.train <- quantile(hs.int[,5],c(0.25,0.5,0.75))
+hs.test <-quantile(hs.int[,6],c(0.25,0.5,0.75))
+
+#define legends
+leglab <- c(paste0("500Model-Male")
+                             ,paste0("500Model-Female")
+                             ,paste0("2kt-Male"), '2k-Female')
+
+#Test
+res.iqr <- apply(res.mat[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+plot(x=1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Test RMSE", ylab="RMSE", xlab="iteration",ylim=c(4,5.5))
+res.iqr2 <- apply(res.mat2[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=1, type = 'l')
+
+res.iqr3 <- apply(res.mat3[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=1, type = 'l')
+res.iqr4 <- apply(res.mat4[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.test[2], col='magenta',lwd=2)
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+ 
+#Train
+res.iqr <- apply(res.mat[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+plot(x =1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Train RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,8))
+res.iqr2 <- apply(res.mat2[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=2, type = 'l')
+
+res.iqr3 <- apply(res.mat3[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x =1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=2, type = 'l')
+res.iqr4 <- apply(res.mat4[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.train[2], col='magenta',lwd=2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+abline(h=5.904118, lwd = 2)
+
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+```
+ 
+```{r}
+#IG with alpha = 6 and initialisation with mean
+num.it <-1200
+runs <- 1:10
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec20_sm_depind_2class_gpnn_bbig_init_bbs_lossM__jobid_",i,".csv")))[,1:num.it]
+ }
+#GPNN adj
+runs2 <- 1:10
+res.mat2 <- array(,dim=c(2,length(runs2),num.it))
+for(i in runs2){
+  res.mat2[,which(i==runs2),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec20_sm_depind_2class_gpnn_bbig_init_bbs_lossF__jobid_",i,".csv")))[,1:num.it]
+}
+#SGD
+runs3 <- c(2,3,9,10)
+res.mat3 <- array(,dim=c(2,length(runs3),num.it))
+for(i in runs3){
+  res.mat3[,which(i==runs3),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec20_sm_depind_gpnn_bbig_init_bbs_lossM__jobid_",i,".csv")))[,1:num.it]
+} 
+# HSP
+runs4 <-  c(2,3,9,10)
+res.mat4 <- array(,dim=c(2,length(runs4),num.it))
+for(i in runs4){
+  res.mat4[,which(i==runs4),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec20_sm_depind_gpnn_bbig_init_bbs_lossF__jobid_",i,".csv")))[,1:num.it]
+}
+
+runs.hs <- 1:5
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/bnn2/res3/pile/re_test_may7_gpr_noscale_",i,".csv"))))
+}
+hs.train <- quantile(hs.int[,5],c(0.25,0.5,0.75))
+hs.test <-quantile(hs.int[,6],c(0.25,0.5,0.75))
+
+#define legends
+leglab <- c(paste0("2LatentModel-Male")
+                             ,paste0("2LatentModel-Female")
+                             ,paste0("4Latent-Male"), '4Latent-Female')
+
+#Test
+res.iqr <- apply(res.mat[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+plot(x=1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Test RMSE", ylab="RMSE", xlab="iteration",ylim=c(4,5.5))
+res.iqr2 <- apply(res.mat2[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=1, type = 'l')
+
+res.iqr3 <- apply(res.mat3[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=1, type = 'l')
+res.iqr4 <- apply(res.mat4[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.test[2], col='magenta',lwd=2)
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+ 
+#Train
+res.iqr <- apply(res.mat[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+plot(x =1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Train RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,8))
+res.iqr2 <- apply(res.mat2[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=2, type = 'l')
+
+res.iqr3 <- apply(res.mat3[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x =1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=2, type = 'l')
+res.iqr4 <- apply(res.mat4[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.train[2], col='magenta',lwd=2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+abline(h=5.904118, lwd = 2)
+
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+```
+ 
+ Double epochs did not help at all.
+ 
+ Currently running
+// dec27_sm_depind_gpgp_bbig_init 41561842
+ 
+#28 dec
+##Plot min loss of gpgp
+```{r}
+runs <- c(1:5,7:10)
+res1 <- vector(mode = 'numeric')
+for (i in runs){ 
+  res1 <- c(res1,read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec27_sm_depind_gpgp_bbig_init_minloss__jobid_",i,".csv"))$x)
+}
+plot(x=runs, y= sqrt(res1), col='red',lwd=2, type = 'b',main = "Minimum Test RMSE across 800 iterations", ylab="RMSE", xlab="Run Number",ylim=c(1,8))
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+legend('topright',legend = c('Model', 'response sd'),lty=c(1),col=c('red','black'))
+```
+
+Runnung
+//dec28_sm_depind_gpgp_bbig_init_bbs  41576097 => 1000 epochs
+
+##Find best run
+```{r}
+num.it <-4000
+runs <- c(1,5,6,8:10)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec28_sm_depind_gpgp_bbig_init_bbs_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+res1<- c(apply(res.mat[2,,], 1, FUN = min))
+plot(x=runs, y= sqrt(res1), col='red',lwd=2, type = 'b',main = "Minimum Test RMSE across 600 iterations", ylab="RMSE", xlab="Run Number",ylim=c(1,8))
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+legend('topright',legend = c('Model', 'response sd'),lty=c(1),col=c('red','black'))
+```
+It's terrible.
+
+```{r}
+#IG with alpha = 6 and initialisation with mean
+num.it <-4000
+runs <- c(1,5,6,8:10)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec28_sm_depind_gpgp_bbig_init_bbs_lossM__jobid_",i,".csv")))[,1:num.it]
+ }
+#GPNN adj
+runs2 <- c(1,5,6,8:10)
+res.mat2 <- array(,dim=c(2,length(runs2),num.it))
+for(i in runs2){
+  res.mat2[,which(i==runs2),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec28_sm_depind_gpgp_bbig_init_bbs_lossF__jobid_",i,".csv")))[,1:num.it]
+}
+
+#define legends
+leglab <- c(paste0("GPGP-Male")
+                             ,paste0("GPGP-Female"))
+
+#Test
+res.iqr <- apply(res.mat[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+plot(x=1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Test RMSE", ylab="RMSE", xlab="iteration",ylim=c(5,5.6))
+res.iqr2 <- apply(res.mat2[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=1, type = 'l')
+
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+ 
+#Train
+res.iqr <- apply(res.mat[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+plot(x =1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Train RMSE", ylab="RMSE", xlab="iteration",ylim=c(3.5,5.2))
+res.iqr2 <- apply(res.mat2[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=2, type = 'l')
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+abline(h=5.904118, lwd = 2)
+
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+```
+It's over regularised 
+
+
+#5 Jan
+Lets have a look at lowest and highest dep ind
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/age_sex_strat_depind.feather'))
+#age_tab <- age_tab[order(age_tab$id),].     #DOES THIS MESS UP ORDER
+age <- age_tab$age
+sex <-  as.numeric(age_tab$sex)
+sex <- sapply(sex, function(x) replace(x, x==0,-1)) #Change female to -1, male to 1
+
+depind <- age_tab$DepInd
+quantile_thresholds <- quantile(depind, probs = seq(0, 1, by = 0.1))
+dep.group1 <- ifelse(depind >= quantile_thresholds[[1]] & depind <=quantile_thresholds[[2]], yes =1, no = 0)
+dep.group2 <- ifelse(depind > quantile_thresholds[[2]] & depind <=quantile_thresholds[[3]], yes =1, no = 0)
+dep.group3 <- ifelse(depind > quantile_thresholds[[3]] & depind <=quantile_thresholds[[4]], yes =1, no = 0)
+dep.group4 <- ifelse(depind > quantile_thresholds[[4]] & depind <=quantile_thresholds[[5]], yes =1, no = 0)
+dep.group5 <- ifelse(depind > quantile_thresholds[[5]] & depind <=quantile_thresholds[[6]], yes =1, no = 0)
+dep.group6 <- ifelse(depind > quantile_thresholds[[6]] & depind <=quantile_thresholds[[7]], yes =1, no = 0)
+dep.group7 <- ifelse(depind > quantile_thresholds[[7]] & depind <=quantile_thresholds[[8]], yes =1, no = 0)
+dep.group8 <- ifelse(depind > quantile_thresholds[[8]] & depind <=quantile_thresholds[[9]], yes =1, no = 0)
+dep.group9 <- ifelse(depind > quantile_thresholds[[9]] & depind <=quantile_thresholds[[10]], yes =1, no = 0)
+dep.group10 <- ifelse(depind > quantile_thresholds[[10]] & depind <=quantile_thresholds[[11]], yes =1, no = 0)
+co.dat <- cbind(sex,dep.group1,dep.group2,dep.group3,dep.group4,dep.group5,dep.group6,dep.group7,dep.group8,dep.group9,dep.group10)
+```
+
+```{r}
+summary(age[dep.group1==1 | dep.group2==1])
+summary(age[dep.group9==1 | dep.group10==1])
+
+summary(age[dep.group1==1])
+summary(age[dep.group10==1])
+
+```
+```{r}
+quantile_thresholds.15 <- quantile(depind, probs = c(0.15,0.85))
+dep.group1 <- ifelse(depind <= quantile_thresholds.15[[1]], yes =1, no = 0) #bottom 15
+dep.group2 <- ifelse(depind >= quantile_thresholds.15[[2]], yes =1, no = 0) #top 15
+```
+
+Deprivation group looks similar, let's split 80% train, 20% test
+
+```{r}
+age_tab.filterdep15 <- age_tab[dep.group1==1 | dep.group2==1, ] #n = 1184
+write_feather(age_tab.filterdep15, '/well/nichols/users/qcv214/KGPNN/age_sex_strat_depind15.feather')
+```
+```{r}
+plot(density(age_tab.filterdep15$DepInd))
+abline(v = median(age_tab.filterdep15$DepInd))
+```
+
+```{r}
+test.ind <- seq(1,nrow(age_tab.filterdep15),5) #take every 5, so 20%
+train.ind <- setdiff(seq(nrow(age_tab.filterdep15)), test.ind)
+
+write.csv(x = train.ind, file = '/well/nichols/users/qcv214/KGPNN/dep15_train_index.csv', row.names = FALSE)
+write.csv(x = test.ind , file = '/well/nichols/users/qcv214/KGPNN/dep15_test_index.csv', row.names = FALSE)
+```
+
+```{r}
+plot(density(age_tab.filterdep15$DepInd[train.ind]))
+abline(v = median(age_tab.filterdep15$DepInd))
+```
+```{r}
+plot(density(age_tab.filterdep15$DepInd[test.ind]))
+abline(v = median(age_tab.filterdep15$DepInd))
+```
+```{r}
+library(ggplot2)
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/age_sex_strat_depind15.feather'))
+
+ggplot(age_tab, aes(x = DepInd)) +
+  geom_histogram(binwidth = 0.5, fill = "blue", color = "black") +
+  theme_minimal() +
+  labs(title = "Histogram of combined Deprivation Index",
+       x = "DepInd",
+       y = "Count")
+```
+
+Check separation:
+```{r}
+(age_tab.filterdep15$DepInd[c(1184/2,1184/2+1)])
+```
+
+Since the separation is so clear, should I use the raw value rather than categorical? TBD
+
+Currently running
+jan5_sm_depind15_gpnn_bbig_init 42091035 => top/bot 15 dep ind, 4 subclasses
+
+
+##Plot min loss
+```{r}
+runs <-  1:10
+res1 <- vector(mode = 'numeric')
+for (i in runs){ 
+  res1 <- c(res1,read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_jan5_sm_depind15_gpnn_bbig_init_minloss__jobid_",i,".csv"))$x)
+}
+plot(x=runs, y= sqrt(res1), col='red',lwd=2, type = 'b',main = "Minimum Test RMSE across 800 iterations", ylab="RMSE", xlab="Run Number",ylim=c(1,8))
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+legend('topright',legend = c('Model', 'response sd'),lty=c(1),col=c('red','black'))
+```
+All done in 7.5 hours, perhaps extend it further to 500 again?
+
+jan6_sm_depind15_gpnn_bbig_init 42159761 ==> 500 epochs of searching
+jan6_sm_depind15_gpnn_bbig_init_bbs 42159948 => bbs built upon jan5_sm_depind15_gpnn_bbig_init
+
+##Plot min loss
+```{r}
+runs <-  c(1:4,6,8:10)
+res1 <- vector(mode = 'numeric')
+for (i in runs){ 
+  res1 <- c(res1,read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_jan6_sm_depind15_gpnn_bbig_init_minloss__jobid_",i,".csv"))$x)
+}
+plot(x=runs, y= sqrt(res1), col='red',lwd=2, type = 'b',main = "Minimum Test RMSE across 800 iterations", ylab="RMSE", xlab="Run Number",ylim=c(1,8))
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+legend('topright',legend = c('Model', 'response sd'),lty=c(1),col=c('red','black'))
+```
+
+Longer run doesnt help... 20 hours, got training rmse to almost 0
+
+
+
+#11 Jan
+##Focus on jan6_sm_depind15_gpnn_bbig_init_bbs
+### Loss
+```{r}
+#IG with alpha = 6 and initialisation with mean
+num.it <-600
+runs <- 1:10
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_jan6_sm_depind15_gpnn_bbig_init_bbs_lossM__jobid_",i,".csv")))[,1:num.it]
+ }
+#GPNN adj
+runs2 <- 1:10
+res.mat2 <- array(,dim=c(2,length(runs2),num.it))
+for(i in runs2){
+  res.mat2[,which(i==runs2),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_jan6_sm_depind15_gpnn_bbig_init_bbs_lossF__jobid_",i,".csv")))[,1:num.it]
+}
+
+#define legends
+leglab <- c(paste0("2LatentModel-Male")
+                             ,paste0("2LatentModel-Female"))
+
+#Test
+res.iqr <- apply(res.mat[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+plot(x=1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Test RMSE", ylab="RMSE", xlab="iteration",ylim=c(4,5.5))
+res.iqr2 <- apply(res.mat2[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=1, type = 'l')
+
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+ 
+#Train
+res.iqr <- apply(res.mat[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+plot(x =1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Train RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,8))
+res.iqr2 <- apply(res.mat2[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=2, type = 'l')
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+abline(h=5.904118, lwd = 2)
+
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+```
+```{r}
+#IG with alpha = 6 and initialisation with mean
+num.it <- 600
+runs <- 1:10
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_jan6_sm_depind15_gpnn_bbig_init_bbs_lossM__jobid_",i,".csv")))[,1:num.it]
+ }
+#GPNN adj
+runs2 <- 1:10
+res.mat2 <- array(,dim=c(2,length(runs2),num.it))
+for(i in runs2){
+  res.mat2[,which(i==runs2),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_jan6_sm_depind15_gpnn_bbig_init_bbs_lossF__jobid_",i,".csv")))[,1:num.it]
+}
+#SGD
+runs3 <- c(2,3,9,10)
+res.mat3 <- array(,dim=c(2,length(runs3),num.it))
+for(i in runs3){
+  res.mat3[,which(i==runs3),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec20_sm_depind_gpnn_bbig_init_bbs_lossM__jobid_",i,".csv")))[,1:num.it]
+} 
+# HSP
+runs4 <-  c(2,3,9,10)
+res.mat4 <- array(,dim=c(2,length(runs4),num.it))
+for(i in runs4){
+  res.mat4[,which(i==runs4),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec20_sm_depind_gpnn_bbig_init_bbs_lossF__jobid_",i,".csv")))[,1:num.it]
+}
+
+runs.hs <- 1:5
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/bnn2/res3/pile/re_test_may7_gpr_noscale_",i,".csv"))))
+}
+hs.train <- quantile(hs.int[,5],c(0.25,0.5,0.75))
+hs.test <-quantile(hs.int[,6],c(0.25,0.5,0.75))
+
+#define legends
+leglab <- c(paste0("top/bot15%-Male")
+                             ,paste0("top/bot15%-Female")
+                             ,paste0("original-Male"), 'original-Female')
+
+#Test
+res.iqr <- apply(res.mat[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+plot(x=1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Test RMSE", ylab="RMSE", xlab="iteration",ylim=c(4,5.5))
+res.iqr2 <- apply(res.mat2[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=1, type = 'l')
+
+res.iqr3 <- apply(res.mat3[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=1, type = 'l')
+res.iqr4 <- apply(res.mat4[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.test[2], col='magenta',lwd=2)
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+ 
+#Train
+res.iqr <- apply(res.mat[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+plot(x =1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Train RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,8))
+res.iqr2 <- apply(res.mat2[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=2, type = 'l')
+
+res.iqr3 <- apply(res.mat3[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x =1:num.it,y=sqrt(res.iqr3[2,]),col='navy',lwd=2, type = 'l')
+res.iqr4 <- apply(res.mat4[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr4[2,]),col='lightblue',lwd=2, type = 'l')
+abline(h=hs.train[2], col='magenta',lwd=2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+abline(h=5.904118, lwd = 2)
+
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+```
+
+### Class predictions
+Training
+```{r}
+success.run <- c(1:10)
+n.train <- length(read.csv('/well/nichols/users/qcv214/KGPNN/dep15_train_index.csv')$x)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/dep15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/re_jan6_sm_depind15_gpnn_bbig_init_bbs_inpred__jobid_',i,'.feather'))))[,3]
+  dat.in <- tail(dat.in,n.train)
+  print(paste0('run: ',i))
+  print(table(dat.in))
+}
+```
+Test
+```{r}
+success.run <- c(1,3,5)
+n.train <- length(read.csv('/well/nichols/users/qcv214/KGPNN/dep15_train_index.csv')$x)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/dep15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/re_jan6_sm_depind15_gpnn_bbig_init_bbs_outpred__jobid_',i,'.feather'))))[,3]
+  dat.in <- tail(dat.in,n.test)
+  print(paste0('run: ',i))
+  print(table(dat.in))
+}
+```
+Proportions look about right across 3 runs.
+
+Let's dissect training of 1st run
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/age_sex_strat_depind15.feather'))
+
+success.run <- c(1)
+n.train <- length(read.csv('/well/nichols/users/qcv214/KGPNN/dep15_train_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/re_jan6_sm_depind15_gpnn_bbig_init_bbs_inpred__jobid_',i,'.feather'))))[,c(1,3)]
+  dat.in <- tail(dat.in,n.train)
+  colnames(dat.in) <- c('id_ind','class')
+}
+
+age.in <- age_tab[dat.in$id_ind,c('age','sex','DepInd')]
+age.in <- cbind(age.in,as.factor(dat.in$class))
+colnames(age.in) <- c('age','sex','DepInd',"class")
+```
+```{r}
+library(ggplot2)
+library(tidyr)
+
+# Assuming your dataframe is named age.in
+# Reshape the data to long format
+age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd), names_to = "variable", values_to = "value")
+
+# Create the boxplot
+ggplot(age.in_long, aes(x = variable, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ class, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd by Class",
+       x = "Variable",
+       y = "Value")
+
+```
+```{r}
+# Assuming your dataframe is named age.in
+# Reshape the data to long format
+age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+
+```
+
+So my latent doesn't distinguish gender, but uses just DepInd. Seems like low depInd is associated with longer age (by true values tho)
+Let's look at held out
+
+Look at test
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/age_sex_strat_depind15.feather'))
+success.run <- c(1)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/dep15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/re_jan6_sm_depind15_gpnn_bbig_init_bbs_outpred__jobid_',i,'.feather'))))[,c(1,3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('age','sex','DepInd')]
+age.in <- cbind(age.in,as.factor(dat.in$class))
+colnames(age.in) <- c('age','sex','DepInd',"class")
+
+age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+```
+It does correctly predicts class.
+
+##Let's observe where there are 3 class predictions
+train
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/age_sex_strat_depind15.feather'))
+success.run <- c(5)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/dep15_train_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/re_jan6_sm_depind15_gpnn_bbig_init_bbs_inpred__jobid_',i,'.feather'))))[,c(1,3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('age','sex','DepInd')]
+age.in <- cbind(age.in,as.factor(dat.in$class))
+colnames(age.in) <- c('age','sex','DepInd',"class")
+
+age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+```
+test
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/age_sex_strat_depind15.feather'))
+success.run <- c(5)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/dep15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/re_jan6_sm_depind15_gpnn_bbig_init_bbs_outpred__jobid_',i,'.feather'))))[,c(1,3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('age','sex','DepInd')]
+age.in <- cbind(age.in,as.factor(dat.in$class))
+colnames(age.in) <- c('age','sex','DepInd',"class")
+
+age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+```
+We can see that training and test is consistent. 
+Class 2 is consistently(train & test) male + low DepInd
+Class 3 is consistently male + high DepInd
+Class 4 is consistently female + all DepInd
+
+
+##Let's see run 9 
+train
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/age_sex_strat_depind15.feather'))
+success.run <- c(9)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/dep15_train_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/re_jan6_sm_depind15_gpnn_bbig_init_bbs_inpred__jobid_',i,'.feather'))))[,c(1,3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('age','sex','DepInd')]
+age.in <- cbind(age.in,as.factor(dat.in$class))
+colnames(age.in) <- c('age','sex','DepInd',"class")
+
+age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+```
+test
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/age_sex_strat_depind15.feather'))
+success.run <- c(9)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/dep15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/re_jan6_sm_depind15_gpnn_bbig_init_bbs_outpred__jobid_',i,'.feather'))))[,c(1,3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('age','sex','DepInd')]
+age.in <- cbind(age.in,as.factor(dat.in$class))
+colnames(age.in) <- c('age','sex','DepInd',"class")
+
+age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+```
+Exact same detections in run 5 and 9.
+
+##Let's focus on run 1 and 5. Look at the squared errors associated to each class
+###Run 1
+train
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/age_sex_strat_depind15.feather'))
+success.run <-6
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/dep15_train_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/re_jan6_sm_depind15_gpnn_bbig_init_bbs_inpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('age','sex','DepInd')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$age)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('age','sex','DepInd','pred','SqError',"class")
+
+age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+```
+test
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/age_sex_strat_depind15.feather'))
+success.run <- 6
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/dep15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/re_jan6_sm_depind15_gpnn_bbig_init_bbs_outpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('age','sex','DepInd')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$age)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('age','sex','DepInd','pred','SqError',"class")
+
+age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+```
+Square error of training is almost 0, but held out is like huge
+
+###Run 5
+train
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/age_sex_strat_depind15.feather'))
+success.run <- c(5)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/dep15_train_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/re_jan6_sm_depind15_gpnn_bbig_init_bbs_inpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('age','sex','DepInd')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$age)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('age','sex','DepInd','pred','SqError',"class")
+
+age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+```
+test
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/age_sex_strat_depind15.feather'))
+success.run <- c(5)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/dep15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/re_jan6_sm_depind15_gpnn_bbig_init_bbs_outpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('age','sex','DepInd')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$age)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('age','sex','DepInd','pred','SqError',"class")
+
+age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+```
+Looking at test data, we do see that class 2 can be predicted better than 3 and 4 respectively.
+
+
+###Some diagnostic
+```{r}
+success.run <- 8
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/age_sex_strat_depind15.feather'))
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/dep15_train_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/re_jan6_sm_depind15_gpnn_bbig_init_bbs_inpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('age','sex','DepInd')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$age)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('age','sex','DepInd','pred','SqError',"class")
+
+age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+
+```
+```{r}
+success.run <- 8
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/age_sex_strat_depind15.feather'))
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/dep15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/re_jan6_sm_depind15_gpnn_bbig_init_bbs_outpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('age','sex','DepInd')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$age)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('age','sex','DepInd','pred','SqError',"class")
+
+age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+
+```
+Looking at the DepInd above, I think judging from distributions of DepInd, class 1 uses higher mixture of high DepInd
+
+
+
+
+2 out of 10 times, model distinguish using sex into 2 latent classes.
+
+#15 Jan
+##Want to look at proportion of Male and Female according to DepIn
+ggplot(dep.vec_df, aes(x = value, fill
+= sex)) +
+geom_histogram(position = "identity", alpha = 0.5, binwidth = 0.5) +
+geom_vline(data = medians, aes(xintercept = value, color = sex), linetype = "dashed", size = 1) +
+scale_color_manual(values = c("black", "black")) + # Adjust colors if needed
+labs(title = "Histogram of Values by Sex", x = "Values", y = "Frequency") +
+scale_fill_manual(values = c("red", "blue")) +
+theme_minimal() +
+guides(color = FALSE) # To remove the legend for the median lines
+
+swift
+
+```{r}
+library(ggplot2)
+# Assuming dep.vec and sex are defined as before
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/age_sex_strat_depind15.feather'))
+age_tab$sex <- factor(age_tab$sex, levels = c(0, 1), labels = c("Female", "Male"))
+
+dep.vec_df <- data.frame(value = age_tab$DepInd, sex = as.factor(age_tab$sex))
+medians <- aggregate(value ~ sex, data = dep.vec_df, FUN = median)
+
+# Create the histogram using ggplot
+ggplot(dep.vec_df, aes(x = value, fill = sex)) +
+  geom_histogram(position = "identity", alpha = 0.5, binwidth = 0.5) +
+  geom_vline(data = medians, aes(xintercept = value, color = sex), linetype = "dashed", size = 1) +
+  scale_color_manual(values = c("red", "blue")) +
+  labs(title = "Histogram of Values by Sex", x = "Values", y = "Frequency") +
+  scale_fill_manual(values = c("red", "blue")) +
+  theme_minimal()+
+  guides(color = FALSE) 
+
+```
+```{r}
+summary(dep.vec_df[dep.vec_df$sex==0,1])
+```
+```{r}
+summary(dep.vec_df[dep.vec_df$sex==1,1])
+```
+
+#Jan 16
+Look at the alpha,beta,gamma and posterior variance saved for the parameters and report it to Tom. Initially started off with 0.5/(11-1) = 0.05 which is really low for variance.
+It's the conj gamma
+
+write.csv(conj.invgamma,paste0( '/well/nichols/users/qcv214/KGPNN/pile/re_',filename,'_invgam_',"_jobid_",JobId,".csv"), row.names = FALSE)
+```{r}
+post.var  <- read.csv('/well/nichols/users/qcv214/KGPNN/pile/re_jan6_sm_depind15_gpnn_bbig_init_bbs_invgam__jobid_1.csv')
+#This goes to 1199, at step 1200 it's just NA
+#Variance all of scale 3e-06
+```
+
+```{r}
+post.var  <- read.csv('/well/nichols/users/qcv214/KGPNN/pile/re_jan6_sm_depind15_gpnn_bbig_init_minpriorvar__jobid_1.csv')
+#This goes to 1199, at step 1200 it's just NA
+#Variance all of scale 6e-06
+```
+
+I will run
+[failed] jan16_sm_depind15_hivar_gpnn_bbig_init 43074722 => with 300 epochs, variance starting of 4 (as opposed to 0.05) with alpha = 1.5 and beta = 2.
+Above all crashed after 2 runs... why
+
+[failed... must be from grad updates that's crashing it]  jan16_sm_depind15_hivar_gpnn_bbig_init 43080250 => with 300 epochs, variance starting of 4 (as opposed to 0.05) with alpha = 6 and beta = 20. f
+[failed] jan16_sm_depind15_hivar_gpnn_bbig_init 43081164 => prior var = 1, alpha = 21, beta = 20.
+
+//jan16_sm_depind15_hivar_gpnn_bbig_init 43081436 => prior var = 1, alpha = 21, beta = 10.
+
+ALSO note that y.sigma is 10k ~ 500k
+
+
+#18 Jan
+Look at prior var = 0.5
+##Plot min loss of gpnn
+```{r}
+runs <- c(2:7,9:10)
+res1 <- vector(mode = 'numeric')
+for (i in runs){ 
+  res1 <- c(res1,read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_jan16_sm_depind15_hivar_gpnn_bbig_init_minloss__jobid_",i,".csv"))$x)
+}
+plot(x=runs, y= sqrt(res1), col='red',lwd=2, type = 'b',main = "Minimum Test RMSE across 800 iterations", ylab="RMSE", xlab="Run Number",ylim=c(1,8))
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+legend('topright',legend = c('Model', 'response sd'),lty=c(1),col=c('red','black'))
+```
+This isn't good.
+Look at the posterior var:
+```{r}
+post.var  <- read.csv('/well/nichols/users/qcv214/KGPNN/pile/re_jan16_sm_depind15_hivar_gpnn_bbig_init_minpriorvar__jobid_2.csv')
+#Very interesting, this only converges to 1e-4, as opposed to 1e-6 in the case of 0.06 var
+```
+
+Currently running
+`jan16_sm_depind18_lovar_gpnn_bbig_init` 43400255 , alpha = 101, and beta = 0.01 ie prior var = 1e-4
+
+low variance seems to be inflating y.sigma. to enormous scale
+###Let me cap the y.sigma
+Let's see what happen if I cap y.sigma at 100
+[failed] `jan18_sm_depind15_lovar_ysigcap_gpnn_bbig_init` 43401348
+Capping the positive side of it will make it go to -5000 which crashes. Let me cap it between 0 and 100
+`jan18_sm_depind15_lovar_ysigcap_gpnn_bbig_init` 43403555 ==> avoiding negative y.sigma
+
+
+##To reduce overfitting
+I will reduce the number of imaging hidden neurons. Previously hermite poly was 30, corresponding to 5456 params per regions (65k in total) then *4. 
+I will change this to poly 10, 286 param per regions. (3432 in total) then *4
+`partial_gp_centroids_fixed_100.540.feather`
+
+`jan18_sm_depind_lowhid_gpnn_bbig_init` 43400323
+
+
+#19 Jan
+##Observe low prior var, in the case of top/bot 15
+```{r}
+runs <- c(1:5,8:10)
+res1 <- vector(mode = 'numeric')
+for (i in runs){ 
+  res1 <- c(res1,read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_jan16_sm_depind18_lovar_gpnn_bbig_init_minloss__jobid_",i,".csv"))$x)
+}
+plot(x=runs, y= sqrt(res1), col='red',lwd=2, type = 'b',main = "Minimum Test RMSE across 800 iterations", ylab="RMSE", xlab="Run Number",ylim=c(1,8))
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+legend('topright',legend = c('Model', 'response sd'),lty=c(1),col=c('red','black'))
+```
+
+##Capping y sigma
+```{r}
+runs <- c(1:10)
+res1 <- vector(mode = 'numeric')
+for (i in runs){ 
+  res1 <- c(res1,read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_jan18_sm_depind15_lovar_ysigcap_gpnn_bbig_init_minloss__jobid_",i,".csv"))$x)
+}
+plot(x=runs, y= sqrt(res1), col='red',lwd=2, type = 'b',main = "Minimum Test RMSE across 800 iterations", ylab="RMSE", xlab="Run Number",ylim=c(1,8))
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+legend('topright',legend = c('Model', 'response sd'),lty=c(1),col=c('red','black'))
+```
+A little worse than limiting variance
+
+##Lowering hidden expansion in full model
+```{r}
+runs <- c(2,4:10)
+runs2 <-c(1,3,4,7,8,9)
+res1 <- vector(mode = 'numeric')
+res2 <- vector(mode = 'numeric')
+for (i in runs){ 
+  res1 <- c(res1,read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_jan18_sm_depind_lowhid_gpnn_bbig_init_minloss__jobid_",i,".csv"))$x)
+  }
+for (i in runs2){ 
+  res2 <- c(res2,read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec15_sm_depind_gpnn_bbig_init_minloss__jobid_",i,".csv"))$x)
+}
+plot(x=runs, y= sqrt(res1), col='red',lwd=2, type = 'b',main = "Minimum Test RMSE across 800 iterations", ylab="RMSE", xlab="Run Number",ylim=c(1,8))
+lines(x = runs2,y=sqrt(res2),col='blue',lwd=2, type = 'b')
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+legend('topright',legend = c('Model', 'response sd'),lty=c(1),col=c('red','black'))
+```
+
+Min test RMSE doesn't change at all!!! even though the number of hidden neurons have decreased many folds
+
+Let's look at training rmse
+###Training rmse
+```{r}
+#IG with alpha = 6 and initialisation with mean
+num.it <-800
+runs <-  c(2,4:10)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_jan18_sm_depind_lowhid_gpnn_bbig_init_lossM__jobid_",i,".csv")))[,1:num.it]
+ }
+#GPNN adj
+runs2 <-  c(2,4:10)
+res.mat2 <- array(,dim=c(2,length(runs2),num.it))
+for(i in runs2){
+  res.mat2[,which(i==runs2),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_jan18_sm_depind_lowhid_gpnn_bbig_init_lossF__jobid_",i,".csv")))[,1:num.it]
+}
+
+#define legends
+leglab <- c(paste0("LowHidden-Male")
+                             ,paste0("LowHidden-Female"))
+
+#Test
+res.iqr <- apply(res.mat[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0.5,0.75))
+plot(x=1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Test RMSE", ylab="RMSE", xlab="iteration",ylim=c(4,5.5))
+res.iqr2 <- apply(res.mat2[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0.5,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=1, type = 'l')
+
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+ 
+#Train
+res.iqr <- apply(res.mat[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0.5,0.75))
+plot(x =1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Train RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,8))
+res.iqr2 <- apply(res.mat2[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0.5,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=2, type = 'l')
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+abline(h=5.904118, lwd = 2)
+
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+```
+Low hiddden is almost 0 but not 0 yet.
+Though when looking at median score, training RMSE is around 2, so perhaps there's room for it to improve.
+
+###Compare it to original model
+```{r}
+#IG with alpha = 6 and initialisation with mean
+num.it <-800
+runs <- c(1,3,4,7,8,9)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec15_sm_depind_gpnn_bbig_init_lossM__jobid_",i,".csv")))[,1:num.it]
+ }
+#GPNN adj
+runs2 <-c(1,3,4,7,8,9)
+res.mat2 <- array(,dim=c(2,length(runs2),num.it))
+for(i in runs2){
+  res.mat2[,which(i==runs2),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_dec15_sm_depind_gpnn_bbig_init_lossF__jobid_",i,".csv")))[,1:num.it]
+}
+
+#define legends
+leglab <- c(paste0("NormalHidden-Male")
+                             ,paste0("NormalHidden-Female"))
+
+#Test
+res.iqr <- apply(res.mat[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0.5,0.75))
+plot(x=1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Test RMSE", ylab="RMSE", xlab="iteration",ylim=c(4,5.5))
+res.iqr2 <- apply(res.mat2[2,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0.5,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=1, type = 'l')
+
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+ 
+#Train
+res.iqr <- apply(res.mat[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0.5,0.75))
+plot(x =1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Train RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,8))
+res.iqr2 <- apply(res.mat2[1,,], MARGIN = 2, FUN = quantile, probs= c(0.25,0.5,0.75))
+lines(x = 1:num.it,y=sqrt(res.iqr2[2,]),col='pink',lwd=2, type = 'l')
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+abline(h=5.904118, lwd = 2)
+
+legend('topright',legend = leglab,lty=c(1),col=c("red",'pink','navy','lightblue','magenta','black'))
+```
+
+In fact may be I will reduce the low hidden even further
+I will just do 3, corresponds to 240 main effects (20 each).
+
+`jan19_sm_depind_lowhid_gpnn_bbig_init`. 43582980
+
+Will need to try out continuous deprivation at some point
+
+
+
