@@ -8005,3 +8005,1955 @@ feb22_200_rcpp_gpnn_bbig_init  48145987. ===> this is faster than original
 feb22_lowhid_rcpp_gpnn_bbig_init. 48149178 ===> this is slower than original
 
 lowhid_rcpp_gpnn_bbig_init_test.R 48166073 ==> look at the log file. Test for slowness ===> 12 minutes per epoch.
+
+Re-impleted Armadillo apart from taking the mean part... .
+lowhid_rcpp_gpnn_bbig_init_test.R 48446127 ===> this changes from the vanilla Rcpp from 12 mins per epochs to 3-4 mins. Computing grad weights and grad means cost 30 seconds each.... but why. Why is it slower than for loop in R? The for loop is actually looping over the same thing, n.mask.... *There is another for loop inside, will investigate*
+  Need to compare above to jan27_lowhid_gpnn_bbig_init 44811430 ===> this takes sub 3 mins per epochs wtf. 
+
+
+
+test_feb25_lowhid_rcpp_gpnn_bbig_init 48704369 ===> optimise grad calculations (wrong dimension, (n x p x m) instead of (n x m x p) ) and changing grad mean.
+
+test_feb26_lowhid_rcpp_gpnn_bbig_init 48741781 ===> optimise grad mean. => 1 min per epochs, 11 seconds for grad cal and <1 sec for grad mean. I think what's holding back is Jian's MCMC function in fast_normal_lm
+
+
+
+#26 feb
+##Look at result of feb22_200_rcpp_gpnn_bbig_init
+```{r}
+runs <- c(1:10)
+runs2 <- 1:10
+res1 <- vector(mode = 'numeric')
+res2 <- vector(mode = 'numeric')
+for (i in runs){ 
+  res1 <- c(res1,read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_feb18_200_gpnn_bbig_init_minloss__jobid_",i,".csv"))$x)
+  }
+for (i in runs2){
+  res2 <- c(res2,read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_feb22_200_rcpp_gpnn_bbig_init_minloss__jobid_",i,".csv"))$x)
+}
+plot(x=runs, y= sqrt(res1), col='red',lwd=2, type = 'b',main = "Minimum Test RMSE across 800 iterations", ylab="RMSE", xlab="Run Number",ylim=c(0.78,0.87))
+lines(x = runs2,y=sqrt(res2),col='blue',lwd=2, type = 'b')
+abline(h=0.855, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+legend('topright',legend = c('original 200','rcpp 200', 'response sd'),lty=c(1),col=c('red','blue','black'))
+```
+
+They look about the same
+
+
+//feb26_200_rcpp_gpnn_bbig_init_bbs 48751537 => test rcpp bbs upon normal 200 
+//test_feb26_lowhid_rcpp_gpnn_bbig_init 48743171 => observe jian's fitting and prediction functions
+
+
+## 2 things to do
+1.Scale up gp approx
+
+2. implement bimodal with rcpp
+feb26_bimodal_rcpp_gpnn_bbig_init_bbs 48836950 => 2.1 min/epoch vs 5.6 min/epch previously (feb1_bimodal_gpnn_bbig_init_bbs 45733730) (so under 200 epochs, its 7.2 hours 17.7)
+
+
+//feb29_bimodal_rcpp_gpnn_bbig_init ==> bimodal with 400 epochs of searching. Note that gp expansion deg is 10 [c(2,3,5:10)]
+
+#Plot min loss of rcpp with 400 search vs original with 200 search
+```{r}
+runs <- c(2,3,5:10)
+runs2 <- c(1,5,6,9)
+res1 <- vector(mode = 'numeric')
+res2 <- vector(mode = 'numeric')
+for (i in runs){ 
+  res1 <- c(res1,read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_jan31_bimodal_gpnn_bbig_init_minloss__jobid_",i,".csv"))$x)
+  }
+for (i in runs2){
+  res2 <- c(res2,read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_feb1_bimodal_gpnn_bbig_init_minloss__jobid_",i,".csv"))$x)
+}
+plot(x=runs, y= sqrt(res1), col='red',lwd=2, type = 'b',main = "Minimum Test RMSE across 800 iterations", ylab="RMSE", xlab="Run Number",ylim=c(4.4,5.2))
+lines(x = runs2,y=sqrt(res2),col='blue',lwd=2, type = 'b')
+abline(h=6.035854, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+legend('topright',legend = c('400 epochs','200 epochs', 'response sd'),lty=c(1),col=c('red','blue','black'))
+```
+
+mar1_bimodal_rcpp_gpnn_bbig_init_bbs  49343563
+
+
+
+
+
+
+
+#5 March
+
+##Bimodal
+```{r}
+#IG with alpha = 6 and initialisation with mean
+num.it <-500*4
+runs <- 1:10
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_mar1_bimodal_rcpp_gpnn_bbig_init_bbs_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+
+#define legends
+leglab <- c(paste0("T1+DMN")
+                             ,paste0("T1"), "ridge_T1+DMN","response sd")
+
+#Test
+res.iqr <- apply(res.mat[2,,], MARGIN = 2, FUN = quantile, probs= c(0,0.5,0.75))
+plot(x=1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Test RMSE", ylab="RMSE", xlab="iteration",ylim=c(4,6))
+lines(x = 1:num.it,y=sqrt(res.iqr[1,]),col='pink',lwd=1, type = 'l')
+abline(h=0.855, lwd = 2)
+
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)
+legend('topright',legend = leglab,lty=c(1),col=c("red",'navy','magenta','black'))
+ 
+#Train
+res.iqr <- apply(res.mat[1,,], MARGIN = 2, FUN = quantile, probs= c(0,0.5,0.75))
+plot(x=1:num.it,y=sqrt(res.iqr[2,]),col='red',lwd=2, type = 'l',main = "Train RMSE", ylab="RMSE", xlab="iteration",ylim=c(0,0.5))
+lines(x = 1:num.it,y=sqrt(res.iqr[1,]),col='pink',lwd=1, type = 'l')
+abline(h=0.855, lwd = 2)
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+
+
+legend('topright',legend = leglab,lty=c(1),col=c("red",'navy','magenta','black'))
+```
+
+```{r}
+library(ggplot2)
+library(tidyr)
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 200)) +
+  ylim(4.57,4.8) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "Column", y = "Value", color = "Row ID")
+
+```
+
+```{r}
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 200)) +
+  ylim(0,0.1) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "Column", y = "Value", color = "Row ID")
+
+```
+
+test_mar5_lowhid_rcpp_gpnn_bbig_init 49979127 ===> optimise functions further with Jian's advice.
+
+
+
+#14 March
+
+We want to move back to simulation to see if my model actually work, especially with subgroup idenfication.
+Similar to my first simulation with GPNN, I can take a trained model as my "true" simulated model, this way, I should have the true values for the parameters and the predictions.
+I will take a result where the trained model predict 3-4 classes with deprivation index. *IT IS NOT STRONG* tho, will later need a stronger effect
+Also *note that I don't have rcpp version for SoftMax*
+
+##Simulation
+I will use 
+`/well/nichols/users/qcv214/KGPNN/age_sex_strat_depind15.feather` ==>1184 x 4
+`/well/nichols/users/qcv214/KGPNN/dep15_train_index.csv`
+`/well/nichols/users/qcv214/KGPNN/dep15_test_index.csv`
+Run 5 `/well/nichols/users/qcv214/KGPNN/pile/re_jan6_sm_depind15_gpnn_bbig_init_bbs_inpred__jobid_5.feather` as true
+Config is 4 classes, 30 deg expansion.
+
+
+```{r}
+success.run <- c(5)
+n.train <- length(read.csv('/well/nichols/users/qcv214/KGPNN/dep15_train_index.csv')$x)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/dep15_test_index.csv')$x)
+
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/re_jan6_sm_depind15_gpnn_bbig_init_bbs_inpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.train)
+  colnames(dat.in) <- c('id_ind','pred','class')
+  
+  dat.out <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/re_jan6_sm_depind15_gpnn_bbig_init_bbs_outpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.out <- tail(dat.out,n.test)
+  colnames(dat.out) <- c('id_ind','pred','class')
+}
+```
+
+By comparing `head(dat.in[order(dat.in$id_ind),])` and `dat.out`, it seems that held-out predictions are extremely conservative... always overpredict young and underpredict old. But overpredicting young is a lot more severe.
+
+So to create a combined dataset, I can do 
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/age_sex_strat_depind15.feather'))
+
+combined.pred <- rbind(dat.in,dat.out)
+combined.pred <- combined.pred[order(combined.pred$id_ind),]
+
+combined.pred <- cbind(round(combined.pred), age_tab)
+write_feather(combined.pred, '/well/nichols/users/qcv214/KGPNN/sim15_age.feather')
+```
+
+I will generate a new set of indices to use so our samples are nicely mixed. *NOTE* that every 5 indices, the predicted are badly fit due to outsample, if we keep them in then they will be just pure noise. But let's keep them first
+
+##Set random indices
+Let's split 75% and 25%
+```{r}
+ind.test <- seq(2,nrow(combined.pred),4)
+ind.train <- setdiff(1:nrow(combined.pred), ind.test)
+
+write.csv(x = ind.train, file = '/well/nichols/users/qcv214/KGPNN/sim15_train_index.csv', row.names = FALSE)
+write.csv(x = ind.test, file = '/well/nichols/users/qcv214/KGPNN/sim15_test_index.csv', row.names = FALSE)
+```
+
+
+
+
+Running 
+//sim_mar15_sm_depind15_gpnn_bbig_init 51405889 ==> grad update is not using Rcpp
+
+
+```{r}
+runs <- c(1:3,5:10)
+res1 <- vector(mode = 'numeric')
+for (i in runs){ 
+  res1 <- c(res1,read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_mar15_sm_depind15_gpnn_bbig_init_minloss__jobid_",i,".csv"))$x)
+  }
+plot(x=runs, y= sqrt(res1), col='red',lwd=2, type = 'b',main = "Minimum Test RMSE across 800 iterations", ylab="RMSE", xlab="Run Number",ylim=c(0,5))
+#abline(h=hs.test, lwd = 2,col='magenta')
+#abline(h=7.5, lwd = 2)
+
+grid(nx = NULL, ny = NULL,lty = 2,  col = "gray",lwd = 2)   
+legend('topright',legend = c('Model','ridge','response sd'),lty=c(1),col=c('red','magenta','black'))
+```
+It always overfit no matter what
+
+//mar15_sm_depind15_gpnn_bbig_init_bbs  51757565
+
+##Plot bbs loss
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <-400*4
+runs <- 1:10
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_mar15_sm_depind15_gpnn_bbig_init_bbs_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 200)) +
+  ylim(4.25,4.5) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "Column", y = "Value", color = "Row ID")
+
+```
+
+```{r}
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 200)) +
+  ylim(0,0.5) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "Column", y = "Value", color = "Row ID")
+
+```
+There is a bottleneck at 4.4X, which is very similar to real-data analysis.
+Still need to look at the class assignment
+
+```{r}
+success.run <- c(5)
+n.train <- length(read.csv('/well/nichols/users/qcv214/KGPNN/dep15_train_index.csv')$x)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/dep15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/re_jan6_sm_depind15_gpnn_bbig_init_bbs_inpred__jobid_',i,'.feather'))))[,3]
+  dat.in <- tail(dat.in,n.train)
+  print(paste0('run: ',i))
+  print(table(dat.in))
+}
+```
+
+```{r}
+success.run <- c(1:10)
+n.train <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_train_index.csv')$x)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_mar15_sm_depind15_gpnn_bbig_init_bbs_inpred__jobid_',i,'.feather'))))[,3]
+  dat.in <- tail(dat.in,n.train)
+  print(paste0('run: ',i))
+  print(table(dat.in))
+}
+```
+Only 4 out of 10 times got similar class assignment to true labels, with similar proportion as well. However the model knows nothing about the true class assignment. 
+
+Test
+```{r}
+success.run <- c(1:10)
+n.train <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_train_index.csv')$x)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_mar15_sm_depind15_gpnn_bbig_init_bbs_outpred__jobid_',i,'.feather'))))[,3]
+  dat.in <- tail(dat.in,n.test)
+  print(paste0('run: ',i))
+  print(table(dat.in))
+}
+```
+
+
+
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+success.run <- c(2)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_train_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_mar15_sm_depind15_gpnn_bbig_init_bbs_inpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('age','sex','DepInd')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$age)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('age','sex','DepInd','pred','SqError',"class")
+
+age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+```
+
+#20 Mar
+##Look at the true labels again
+
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/age_sex_strat_depind15.feather'))
+success.run <- c(5)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/dep15_train_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/re_jan6_sm_depind15_gpnn_bbig_init_bbs_inpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('age','sex','DepInd')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$age)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('age','sex','DepInd','pred','SqError',"class")
+
+age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+```
+These classes are well-separated. I will induce effects on each of them. 
+
+Female (4): effect stay the same
+Male-H (3): increase effect by a factor of x3
+Male-L (2): subtract age by 40
+
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+age_tab$pred_amp <- ifelse(age_tab$class == 4, age_tab$pred, 
+                            ifelse(age_tab$class == 3, age_tab$pred*3, 
+                                   ifelse(age_tab$class == 2, age_tab$pred - 40, NA)))
+#write_feather(age_tab, '/well/nichols/users/qcv214/KGPNN/sim15_age.feather')
+
+```
+//[only run 3 and 8 survived, the rest ran into failure] mar20_sm_depind15_gpnn_bbig_init 52193315 ==> amplified subclass effects
+
+//mar21_sm_depind15_gpnn_bbig_init_bbs 52247641
+
+
+#22 Mar
+##Plot bbs loss
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <-400*4
+runs <- 1:10#c(1:4,6:9)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_mar21_sm_depind15_gpnn_bbig_init_bbs_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 200)) +
+  ylim(4.25,50) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "Column", y = "Value", color = "Row ID")
+
+```
+
+```{r}
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 200)) +
+  ylim(0,50) +
+  theme_minimal() +
+  labs(title = "Train RMSE", x = "Column", y = "Value", color = "Row ID")
+```
+
+
+The behaviours are crazy, trained to some point then it gets stuck at very high loss.
+
+Look at the class assignment
+```{r}
+success.run <- c(1:4,6:9)
+n.train <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_train_index.csv')$x)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_mar21_sm_depind15_gpnn_bbig_init_bbs_inpred__jobid_',i,'.feather'))))[,3]
+  dat.in <- tail(dat.in,n.train)
+  print(paste0('run: ',i))
+  print(table(dat.in))
+}
+```
+It cannot detect classes
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+success.run <- c(1)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_train_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_mar21_sm_depind15_gpnn_bbig_init_bbs_inpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('age','sex','DepInd')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$age)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('age','sex','DepInd','pred','SqError',"class")
+
+age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+```
+It doesn't even get the right class assignment
+This one is 
+(1) all high deprivation index
+(3) female-low
+(4) male-low
+
+##look at non optimisation
+##Plot bbs loss
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <-300*4
+runs <- c(3,8)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_mar20_sm_depind15_gpnn_bbig_init_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 200)) +
+  ylim(0,50) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "Column", y = "Value", color = "Row ID")
+
+```
+```{r}
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 200)) +
+  ylim(0,50) +
+  theme_minimal() +
+  labs(title = "Train RMSE", x = "Column", y = "Value", color = "Row ID")
+```
+
+I can get class assignments from the minimum parameters
+```{r}
+for(i in c(3,8)){
+co.bias2<- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_mar20_sm_depind15_gpnn_bbig_init_mincobias__jobid_",i,".csv"))$x
+co.weights2<- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_mar20_sm_depind15_gpnn_bbig_init_mincoweights__jobid_",i,".csv"))
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+ind.train <- (read.csv('/well/nichols/users/qcv214/KGPNN/sim15_train_index.csv')$x)
+ind.test <- (read.csv('/well/nichols/users/qcv214/KGPNN/sim15_test_index.csv')$x)
+
+
+#extract relevant data
+co.dat <- cbind(ifelse(age_tab$sex == 0,-1,1),ifelse(age_tab$DepInd>median(age_tab$DepInd),0,1),ifelse(age_tab$DepInd<median(age_tab$DepInd),0,1))
+
+# co.dat2 <-  cbind(age_tab$sex,ifelse(age_tab$DepInd>median(age_tab$DepInd),0,1),ifelse(age_tab$DepInd<median(age_tab$DepInd),0,1))
+#define softmax
+softmax <-function(z){
+  t(apply(z,1,function(x){
+    xmax <- max(x)
+    return(exp(x-max(x))/sum(exp(x-max(x))))
+  }))
+}
+#Find class assignments;
+
+co.pre.hidden.layer <- t(t(co.dat %*% t(co.weights)) + co.bias)
+co.hidden.layer <- softmax(co.pre.hidden.layer)
+co.class <- apply(co.hidden.layer,1,which.max)
+
+
+#Before I can do matching, I need to look at the classes.
+print(table(age_tab$class,co.class))
+}
+```
+The class assignments are totally wrong
+
+We still need to identify how test RMSE of 10 is achieved. since...
+```{r}
+print(paste0("sd of class 2: ", sd(age_tab$pred_amp[age_tab$class==2])))
+print(paste0("sd of class 3: ", sd(age_tab$pred_amp[age_tab$class==3])))
+print(paste0("sd of class 4: ", sd(age_tab$pred_amp[age_tab$class==4])))
+
+```
+
+
+Maybe I need to look at the class assignments ie why they are in those classes
+```{r}
+#I am using co.dat of run 8 found in the two chunks above
+age.in <- age_tab[c('age','sex','DepInd',"class","pred_amp")]
+age.in <- cbind(age.in,as.factor(co.class))
+colnames(age.in) <- c('age','sex','DepInd',"true_class","pred_amp","class_assigned")
+
+age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, true_class, pred_amp), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class_assigned, y = value, fill = class_assigned)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "class_assigned",
+       y = "Value")
+```
+Run 8 only splits by depind
+
+
+[I only want to look at 3 and 8] mar21_sm_depind15_gpnn_bbig_init_min 52950351 ===> get squared loss at minimum
+
+
+sim_mar21_sm_depind15_gpnn_bbig_init_min_inpred__jobid_3.feather
+sim_mar21_sm_depind15_gpnn_bbig_init_min_outpred__jobid_3.feather
+sim_mar21_sm_depind15_gpnn_bbig_init_min_loss__jobid_3.csv
+
+```{r}
+res<- read.csv("/well/nichols/users/qcv214/KGPNN/pile/sim_mar21_sm_depind15_gpnn_bbig_init_min_loss__jobid_3.csv")
+sqrt(res)
+res<- read.csv("/well/nichols/users/qcv214/KGPNN/pile/sim_mar21_sm_depind15_gpnn_bbig_init_min_loss__jobid_8.csv")
+sqrt(res)
+```
+
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+success.run <- c(3)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_train_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_mar21_sm_depind15_gpnn_bbig_init_min_inpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('pred_amp','sex','DepInd','class')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$pred_amp)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('pred_amp','sex','DepInd','true_class','pred','SqError',"class")
+
+library(ggplot2)
+library(tidyr)
+age.in_long <- pivot_longer(age.in, cols = c(pred_amp, sex, DepInd,true_class, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+```
+held-out
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+success.run <- c(3)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_mar21_sm_depind15_gpnn_bbig_init_min_outpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('pred_amp','sex','DepInd','class')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$pred_amp)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('pred_amp','sex','DepInd','true_class','pred','SqError',"class")
+
+library(ggplot2)
+library(tidyr)
+age.in_long <- pivot_longer(age.in, cols = c(pred_amp, sex, DepInd,true_class, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+```
+
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+success.run <- c(8)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_train_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_mar21_sm_depind15_gpnn_bbig_init_min_inpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('pred_amp','sex','DepInd','class')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$pred_amp)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('pred_amp','sex','DepInd','true_class','pred','SqError',"class")
+
+library(ggplot2)
+library(tidyr)
+age.in_long <- pivot_longer(age.in, cols = c(pred_amp, sex, DepInd,true_class, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+sqrt(mean(age.in$SqError))
+sqrt(median(age.in$SqError))
+```
+held-out
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+success.run <- c(8)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_mar21_sm_depind15_gpnn_bbig_init_min_outpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('pred_amp','sex','DepInd','class')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$pred_amp)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('pred_amp','sex','DepInd','true_class','pred','SqError',"class")
+
+library(ggplot2)
+library(tidyr)
+age.in_long <- pivot_longer(age.in, cols = c(pred_amp, sex, DepInd,true_class, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+sqrt(mean(age.in$SqError))
+sqrt(median(age.in$SqError))
+```
+
+Both run 3 and 8 seem tobe splitting by 
+1 - High dep
+2 - Male low dep
+3 - female low dep
+
+This isn't actually horrible, especially when looknig at median.
+
+
+##I will create a class signal that are even stronger.
+###The thing is ideal signal should exhaust all 4 combinations of sex and depreivation index.
+####What if I induce female to be very strong effect?
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+age_tab$pred_amp <- ifelse(age_tab$class == 4, age_tab$pred*6,  #Faemale x 10
+                            ifelse(age_tab$class == 3, age_tab$pred*2,  #Male high dep x 2
+                                   ifelse(age_tab$class == 2, age_tab$pred - 40, NA))) #male low dep -40
+write_feather(age_tab, '/well/nichols/users/qcv214/KGPNN/sim15_age_femaleAmp.feather')
+```
+```{r}
+print(paste0("sd of class 2: ", sd(age_tab$pred_amp[age_tab$class==2])))
+print(paste0("sd of class 3: ", sd(age_tab$pred_amp[age_tab$class==3])))
+print(paste0("sd of class 4: ", sd(age_tab$pred_amp[age_tab$class==4])))
+
+```
+
+[only 10 survived] apr1_sm_depind15_gpnn_bbig_init_famp 52952714 ===> Amplifying female.
+
+#3 apr
+##Look at female amp
+##look at non optimisation
+##Plot bbs loss
+
+```{r}
+num.it <-400*4
+runs <- c(10)
+res.mat <-as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_apr1_sm_depind15_gpnn_bbig_init_famp_loss__jobid_",i,".csv")))[,1:num.it]
+plot(res.mat[2,], type = 'b', ylim = c(300,2000))
+plot(res.mat[1,], type = 'b', ylim = c(0,2000))
+
+```
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age_femaleAmp.feather'))
+success.run <- c(8)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_train_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_apr1_sm_depind15_gpnn_bbig_init_famp_min_inpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('pred_amp','sex','DepInd','class')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$pred_amp)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('pred_amp','sex','DepInd','true_class','pred','SqError',"class")
+
+library(ggplot2)
+library(tidyr)
+age.in_long <- pivot_longer(age.in, cols = c(pred_amp, sex, DepInd,true_class, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+sqrt(mean(age.in$SqError))
+sqrt(median(age.in$SqError))
+```
+held-out
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age_femaleAmp.feather'))
+success.run <- c(8)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_apr1_sm_depind15_gpnn_bbig_init_famp_min_outpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('pred_amp','sex','DepInd','class')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$pred_amp)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('pred_amp','sex','DepInd','true_class','pred','SqError',"class")
+
+library(ggplot2)
+library(tidyr)
+age.in_long <- pivot_longer(age.in, cols = c(pred_amp, sex, DepInd,true_class, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+sqrt(mean(age.in$SqError))
+sqrt(median(age.in$SqError))
+```
+This exhaust all 4 classes, now it knows signal for each class
+
+
+
+##Sub class splitting
+
+Do I really need to do this if we have shown that the above works? 
+But perhaps I should use this combo...
+
+Right now co.dat is split into
+Gender {-1,1}, low dep {0,1}, high dep {0,1}
+I think I need either
+1. Gender {-1,1}, dep {-1,1} ===> (-1,-1), (-1,1), (1,-1), (1,1). From this, we are required that female with high dep and male with low dep have to be distinguishable, I think it's doable.
+  Note that in the current signal with 3 classes,  (-1,-1), (-1,1) are indisinguishable, meaning the coef of deprivation may not be so good?
+
+or
+2. Male {0,1}, female {0,1},low dep {0,1}, high dep {0,1}
+
+#having {-1,1} assume symmetrical effect?, not really since there is nothing in the middle.
+
+
+#11 Apr
+
+## Incorporating latent class into hidden gp layer
+```{r}
+ #this is 12 x 5456
+partial.gp.centroid<-t(as.matrix(read_feather(paste0("/well/nichols/users/qcv214/KGPNN/partial_gp_centroids_fixed_300.540.feather"))))
+```
+What I need to do is add *K* number of rows, with each row corresponding to 5456 (random) gp coef of each latent class. I am guessing they need to be ~N(,)?? should I include subtle change in mean? Maybe not for now.
+I need to concatenate the result of Softmax to the hidden layer.
+
+Let's create GP coefficients for *4* latent classes with 5456 latent terms (30 deg hermite poly)
+```{r}
+set.seed(4)
+gp.coef <- matrix(rnorm(4*5456),nrow = 4 )
+
+partial.mix <- t(rbind(partial.gp.centroid,gp.coef))
+write_feather(as.data.frame(partial.mix),"/well/nichols/users/qcv214/KGPNN/partial_gp_centroids_fixed_300.540_mixed4Cl.feather")
+
+```
+
+
+
+
+#13 apr 
+##Testing mixed model
+[only 6,9 survived] apr11_sm_depind15_mixed_gpnn_bbig_init 53705353
+Then I need to run the `min` calculation
+apr11_sm_depind15_mixed_gpnn_bbig_init_min 53717109
+
+
+```{r}
+res<- read.csv("/well/nichols/users/qcv214/KGPNN/pile/sim_apr11_sm_depind15_mixed_gpnn_bbig_init_min_loss__jobid_6.csv")
+sqrt(res)
+res<- read.csv("/well/nichols/users/qcv214/KGPNN/pile/sim_apr11_sm_depind15_mixed_gpnn_bbig_init_min_loss__jobid_9.csv")
+sqrt(res)
+```
+##Plot min loss
+###Run 3
+```{r}
+num.it <-400*4
+runs <- c(3)
+res.mat <-as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_apr11_sm_depind15_mixed_gpnn_bbig_init_loss__jobid_",i,".csv")))[,1:num.it]
+plot(res.mat[2,], type = 'b', ylim = c(90,2000))
+plot(res.mat[1,], type = 'b', ylim = c(0,2000))
+
+```
+###run 9
+```{r}
+num.it <-400*4
+runs <- c(9)
+res.mat <-as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_apr11_sm_depind15_mixed_gpnn_bbig_init_loss__jobid_",i,".csv")))[,1:num.it]
+plot(res.mat[2,], type = 'b', ylim = c(90,2000))
+plot(res.mat[1,], type = 'b', ylim = c(0,2000))
+
+```
+##Plot loss
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <-400*4
+runs <- c(6,9)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_apr11_sm_depind15_mixed_gpnn_bbig_init_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 200)) +
+  ylim(0,50) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "iterations", y = "Value", color = "Run number")
+
+```
+```{r}
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 200)) +
+  ylim(0,50) +
+  theme_minimal() +
+  labs(title = "Train RMSE",x = "iterations", y = "Value", color = "Run number")
+```
+
+
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+success.run <- c(6)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_train_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_apr11_sm_depind15_mixed_gpnn_bbig_init_min_inpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('pred_amp','sex','DepInd','class')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$pred_amp)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('pred_amp','sex','DepInd','true_class','pred','SqError',"class")
+
+library(ggplot2)
+library(tidyr)
+age.in_long <- pivot_longer(age.in, cols = c(pred_amp, sex, DepInd,true_class, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+```
+held-out
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+success.run <- c(6)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_apr11_sm_depind15_mixed_gpnn_bbig_init_min_outpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('pred_amp','sex','DepInd','class')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$pred_amp)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('pred_amp','sex','DepInd','true_class','pred','SqError',"class")
+
+library(ggplot2)
+library(tidyr)
+age.in_long <- pivot_longer(age.in, cols = c(pred_amp, sex, DepInd,true_class, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+```
+
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+success.run <- c(9)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_train_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_apr11_sm_depind15_mixed_gpnn_bbig_init_min_inpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('pred_amp','sex','DepInd','class')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$pred_amp)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('pred_amp','sex','DepInd','true_class','pred','SqError',"class")
+
+library(ggplot2)
+library(tidyr)
+age.in_long <- pivot_longer(age.in, cols = c(pred_amp, sex, DepInd,true_class, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+sqrt(mean(age.in$SqError))
+sqrt(median(age.in$SqError))
+```
+held-out
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+success.run <- c(9)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_apr11_sm_depind15_mixed_gpnn_bbig_init_min_outpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('pred_amp','sex','DepInd','class')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$pred_amp)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('pred_amp','sex','DepInd','true_class','pred','SqError',"class")
+
+library(ggplot2)
+library(tidyr)
+age.in_long <- pivot_longer(age.in, cols = c(pred_amp, sex, DepInd,true_class, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+sqrt(mean(age.in$SqError))
+sqrt(median(age.in$SqError))
+```
+Run 9 can discover the right latent classes. 
+
+###Note
+Note that I haven't thought about how to interpret interactions or saliency of interactions yet.+
+
+Running bbs version 
+[2-10] apr13_sm_depind15_mixed_gpnn_bbig_init_bbs 53783977
+
+##Plot bbs loss
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <-400*4
+runs <- c(2:10)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_apr13_sm_depind15_mixed_gpnn_bbig_init_bbs_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 200)) +
+  ylim(4.25,60) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "Column", y = "Value", color = "Row ID")
+
+```
+
+```{r}
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 200)) +
+  ylim(0,20) +
+  theme_minimal() +
+  labs(title = "Train RMSE", x = "Column", y = "Value", color = "Row ID")
+```
+#Look at class assignment of converged run
+##Train
+```{r}
+success.run <- c(2:10)
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+n.train <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_train_index.csv')$x)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_apr13_sm_depind15_mixed_gpnn_bbig_init_bbs_inpred__jobid_',i,'.feather'))))[,3]
+  dat.in <- tail(dat.in,n.train)
+  dat.in.ind <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_apr13_sm_depind15_mixed_gpnn_bbig_init_bbs_inpred__jobid_',i,'.feather'))))[,1]
+  dat.in.ind <- tail(dat.in.ind,n.train)
+  print(paste0('run: ',i))
+  print(table(age_tab$class[dat.in.ind],dat.in))
+}
+```
+##Test
+```{r}
+success.run <- c(2:10)
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+n.train <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_apr13_sm_depind15_mixed_gpnn_bbig_init_bbs_outpred__jobid_',i,'.feather'))))[,3]
+  dat.in <- tail(dat.in,n.train)
+  dat.in.ind <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_apr13_sm_depind15_mixed_gpnn_bbig_init_bbs_outpred__jobid_',i,'.feather'))))[,1]
+  dat.in.ind <- tail(dat.in.ind,n.train)
+  print(paste0('run: ',i))
+  print(table(age_tab$class[dat.in.ind],dat.in))
+}
+```
+
+#15 apr
+##After meeting Tom
+[1,2,7 survived, but misaved preds and class assignments] apr15_sm_depind15_mixed_gpnn_bbig_init 53815930 ==> from `sm_depind15_mixed2_gpnn_bbig_init` making latent class gp coef learnable
+
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <-400*4
+runs <- c(1,2,7)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_apr15_sm_depind15_mixed_gpnn_bbig_init_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 200)) +
+  ylim(0,50) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "iterations", y = "Value", color = "Run number")
+
+```
+```{r}
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 200)) +
+  ylim(0,50) +
+  theme_minimal() +
+  labs(title = "Train RMSE",x = "iterations", y = "Value", color = "Run number")
+```
+
+##Plot minimum
+###Run 1
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+success.run <- c(1)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_train_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_apr15_sm_depind15_mixed_gpnn_bbig_init_min_inpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('pred_amp','sex','DepInd','class')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$pred_amp)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('pred_amp','sex','DepInd','true_class','pred','SqError',"class")
+
+library(ggplot2)
+library(tidyr)
+age.in_long <- pivot_longer(age.in, cols = c(pred_amp, sex, DepInd,true_class, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+sqrt(mean(age.in$SqError))
+sqrt(median(age.in$SqError))
+```
+held-out
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+success.run <- c(1)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_apr15_sm_depind15_mixed_gpnn_bbig_init_min_outpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('pred_amp','sex','DepInd','class')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$pred_amp)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('pred_amp','sex','DepInd','true_class','pred','SqError',"class")
+
+library(ggplot2)
+library(tidyr)
+age.in_long <- pivot_longer(age.in, cols = c(pred_amp, sex, DepInd,true_class, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+sqrt(mean(age.in$SqError))
+sqrt(median(age.in$SqError))
+```
+###Run 2
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+success.run <- c(2)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_train_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_apr15_sm_depind15_mixed_gpnn_bbig_init_min_inpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('pred_amp','sex','DepInd','class')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$pred_amp)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('pred_amp','sex','DepInd','true_class','pred','SqError',"class")
+
+library(ggplot2)
+library(tidyr)
+age.in_long <- pivot_longer(age.in, cols = c(pred_amp, sex, DepInd,true_class, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+sqrt(mean(age.in$SqError))
+sqrt(median(age.in$SqError))
+```
+held-out
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+success.run <- c(2)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_apr15_sm_depind15_mixed_gpnn_bbig_init_min_outpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('pred_amp','sex','DepInd','class')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$pred_amp)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('pred_amp','sex','DepInd','true_class','pred','SqError',"class")
+
+library(ggplot2)
+library(tidyr)
+age.in_long <- pivot_longer(age.in, cols = c(pred_amp, sex, DepInd,true_class, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+sqrt(mean(age.in$SqError))
+sqrt(median(age.in$SqError))
+```
+###Run 7 
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+success.run <- c(7)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_train_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_apr15_sm_depind15_mixed_gpnn_bbig_init_min_inpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('pred_amp','sex','DepInd','class')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$pred_amp)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('pred_amp','sex','DepInd','true_class','pred','SqError',"class")
+
+library(ggplot2)
+library(tidyr)
+age.in_long <- pivot_longer(age.in, cols = c(pred_amp, sex, DepInd,true_class, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+sqrt(mean(age.in$SqError))
+sqrt(median(age.in$SqError))
+```
+held-out
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+success.run <- c(7)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_apr15_sm_depind15_mixed_gpnn_bbig_init_min_outpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('pred_amp','sex','DepInd','class')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$pred_amp)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('pred_amp','sex','DepInd','true_class','pred','SqError',"class")
+
+library(ggplot2)
+library(tidyr)
+age.in_long <- pivot_longer(age.in, cols = c(pred_amp, sex, DepInd,true_class, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+sqrt(mean(age.in$SqError))
+sqrt(median(age.in$SqError))
+```
+54573104
+
+
+
+
+
+
+
+#21 APR
+//apr21_sm_depind15_mixed_gpnn_bbig_init 54576502 ==> from `sm_depind15_mixed2_gpnn_bbig_init` making latent class gp coef learnable... gp.coef gradient fixing from apr15 version.
+##Results
+###Plot of loss
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <-400*4
+runs <- c(1:10)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_apr21_sm_depind15_mixed_gpnn_bbig_init_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 200)) +
+  ylim(0,150) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "iterations", y = "Value", color = "Run number")
+
+```
+All runs survived, but converged at 60 despite bering adaptive learning rate.
+
+```{r}
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 200)) +
+  ylim(0,50) +
+  theme_minimal() +
+  labs(title = "Train RMSE",x = "iterations", y = "Value", color = "Run number")
+```
+###Look at class assignment
+##Train
+```{r}
+success.run <- c(1:10)
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+n.train <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_train_index.csv')$x)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_apr21_sm_depind15_mixed_gpnn_bbig_init_min_inpred__jobid_',i,'.feather'))))[,3]
+  dat.in <- tail(dat.in,n.train)
+  dat.in.ind <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_apr21_sm_depind15_mixed_gpnn_bbig_init_min_inpred__jobid_',i,'.feather'))))[,1]
+  dat.in.ind <- tail(dat.in.ind,n.train)
+  print(paste0('run: ',i))
+  print(table(age_tab$class[dat.in.ind],dat.in))
+}
+```
+3,4,9 correct split
+7,10 over split
+
+###box plot for each run
+###Run 3
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+success.run <- c(3)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_train_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_apr21_sm_depind15_mixed_gpnn_bbig_init_min_inpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('pred_amp','sex','DepInd','class')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$pred_amp)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('pred_amp','sex','DepInd','true_class','pred','SqError',"class")
+
+library(ggplot2)
+library(tidyr)
+age.in_long <- pivot_longer(age.in, cols = c(pred_amp, sex, DepInd,true_class, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+sqrt(mean(age.in$SqError))
+sqrt(median(age.in$SqError))
+```
+held-out
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+success.run <- c(3)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_apr21_sm_depind15_mixed_gpnn_bbig_init_min_outpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('pred_amp','sex','DepInd','class')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$pred_amp)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('pred_amp','sex','DepInd','true_class','pred','SqError',"class")
+
+library(ggplot2)
+library(tidyr)
+age.in_long <- pivot_longer(age.in, cols = c(pred_amp, sex, DepInd,true_class, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+sqrt(mean(age.in$SqError))
+sqrt(median(age.in$SqError))
+```
+###Run 4
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+success.run <- c(4)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_train_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_apr21_sm_depind15_mixed_gpnn_bbig_init_min_inpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('pred_amp','sex','DepInd','class')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$pred_amp)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('pred_amp','sex','DepInd','true_class','pred','SqError',"class")
+
+library(ggplot2)
+library(tidyr)
+age.in_long <- pivot_longer(age.in, cols = c(pred_amp, sex, DepInd,true_class, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+sqrt(mean(age.in$SqError))
+sqrt(median(age.in$SqError))
+```
+held-out
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+success.run <- c(4)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_apr21_sm_depind15_mixed_gpnn_bbig_init_min_outpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('pred_amp','sex','DepInd','class')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$pred_amp)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('pred_amp','sex','DepInd','true_class','pred','SqError',"class")
+
+library(ggplot2)
+library(tidyr)
+age.in_long <- pivot_longer(age.in, cols = c(pred_amp, sex, DepInd,true_class, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+sqrt(mean(age.in$SqError))
+sqrt(median(age.in$SqError))
+```
+
+###Run 9
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+success.run <- c(9)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_train_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_apr21_sm_depind15_mixed_gpnn_bbig_init_min_inpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('pred_amp','sex','DepInd','class')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$pred_amp)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('pred_amp','sex','DepInd','true_class','pred','SqError',"class")
+
+library(ggplot2)
+library(tidyr)
+age.in_long <- pivot_longer(age.in, cols = c(pred_amp, sex, DepInd,true_class, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+sqrt(mean(age.in$SqError))
+sqrt(median(age.in$SqError))
+```
+held-out
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+success.run <- c(9)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_apr21_sm_depind15_mixed_gpnn_bbig_init_min_outpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('pred_amp','sex','DepInd','class')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$pred_amp)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('pred_amp','sex','DepInd','true_class','pred','SqError',"class")
+
+library(ggplot2)
+library(tidyr)
+age.in_long <- pivot_longer(age.in, cols = c(pred_amp, sex, DepInd,true_class, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+sqrt(mean(age.in$SqError))
+sqrt(median(age.in$SqError))
+```
+
+###Run 7
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+success.run <- c(7)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_train_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_apr21_sm_depind15_mixed_gpnn_bbig_init_min_inpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('pred_amp','sex','DepInd','class')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$pred_amp)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('pred_amp','sex','DepInd','true_class','pred','SqError',"class")
+
+library(ggplot2)
+library(tidyr)
+age.in_long <- pivot_longer(age.in, cols = c(pred_amp, sex, DepInd,true_class, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+sqrt(mean(age.in$SqError))
+sqrt(median(age.in$SqError))
+```
+held-out
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+success.run <- c(7)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_apr21_sm_depind15_mixed_gpnn_bbig_init_min_outpred__jobid_',i,'.feather'))))[,c(1:3)]
+  dat.in <- tail(dat.in,n.test)
+  colnames(dat.in) <- c('id_ind','pred','class')
+}
+age.in <- age_tab[dat.in$id_ind,c('pred_amp','sex','DepInd','class')]
+age.in <- cbind(age.in,dat.in$pred, (dat.in$pred - age.in$pred_amp)^2 ,as.factor(dat.in$class))
+colnames(age.in) <- c('pred_amp','sex','DepInd','true_class','pred','SqError',"class")
+
+library(ggplot2)
+library(tidyr)
+age.in_long <- pivot_longer(age.in, cols = c(pred_amp, sex, DepInd,true_class, pred, SqError), names_to = "variable", values_to = "value")
+
+# Create the boxplot for each variable, labeled by class
+ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplot of Age, Sex, and DepInd, Labeled by Class",
+       x = "Class",
+       y = "Value")
+sqrt(mean(age.in$SqError))
+sqrt(median(age.in$SqError))
+```
+
+#25 Apr
+
+##To do
+1. Want to go back to GPNN-GP-Lin, maybe with 52 regions and then create interactions.
+  Base it on `/well/nichols/users/qcv214/bnn2/res3/sigma/gpnn_ols_bbig_init_com.R`=> transofrmation code
+  and `/well/nichols/users/qcv214/bnn2/res3/res4_first_layer_gp.R` => gp generation
+  and `'/well/nichols/users/qcv214/bnn2/res3/res4mask.nii.gz'` => mask
+
+Running
+[1,5,6,7,9] apr25_sm_depind15_gpnn_bbig_init  55617349 ==> testing with degvec = 10, cap BB at magnitude 0.8 and fixing no BB gradients... took 8.5 minutes ====> but loading up data takes 1.5 hours
+I ran into out of memory issue. *** I will be changing the name to gpols instead of gpnn
+
+#29 Apr
+
+Try first version of GP-OLS
+
+##Plot loss
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <-400*4
+runs <- c(1,5,6,7,9)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_apr25_sm_depind15_gpnn_bbig_init_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 200)) +
+  ylim(7,500) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "iterations", y = "Value", color = "Run number")
+
+```
+
+```{r}
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 200)) +
+  ylim(0,40) +
+  theme_minimal() +
+  labs(title = "Train RMSE",x = "iterations", y = "Value", color = "Run number")
+```
+
+
+
+
+apr29_sm_depind15_gpols_bbig_init_min 55815635 ===> calculate min results ***note that this is not representative of stochastic due to using high number of training in the last layer
+
+
+[1,2,3,5,7,8,9,10] apr29_sm_depind15_gpols_bbig_init.  55779367 ==> since half of the previous runs still fail, I am changing it to capping lower lr by a lot (0.8 to 0.1) and if no diff then use 0.025. The machine crashes due to diff_x in the middle of an epoch.... also im changin the number of epochs to 1000
+
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <-1000*4
+runs <- c(1,2,3,5,7,8,9,10)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_apr29_sm_depind15_gpols_bbig_init_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(7,30) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "iterations", y = "Value", color = "Run number")
+
+```
+
+```{r}
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0,40) +
+  theme_minimal() +
+  labs(title = "Train RMSE",x = "iterations", y = "Value", color = "Run number")
+```
+
+Need to run min on this
+//apr30_sm_depind15_gpols_bbig_init_min  55863674
+
+
+
+[failed due to time limit exceeded] apr30_sm_depind15_gpols_bbig_init 55869569 ==> modify first layer gp transformation, more memory efficient. allowing 30 deg expansion using `res4_first_layer_gp_tf.R`.. I think takes 26.5 to load GPs ===> 45 mins, 116 epochs. May not make it to the end. only got to 550 epochs
+
+//[1,2,3,4,6,7,9]may1_sm_depind15_gpols_bbig_init 55955930 ==> 20 deg... 2 hours to train 1k epochs. I think 9 hours to load up gps
+
+#2 May
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <-1000*4
+runs <- c(1,2,3,4,6,7,9)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_may1_sm_depind15_gpols_bbig_init_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(7,30) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "iterations", y = "Value", color = "Run number")
+
+```
+
+```{r}
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0,40) +
+  theme_minimal() +
+  labs(title = "Train RMSE",x = "iterations", y = "Value", color = "Run number")
+```
+
+
+This isn't showing any imprvement on test rmse at all. Basically increasing the degree does not seem to be showing it.
+
+
+#3 May
+Run ridge and lasso on the simulated data
+`sim_may3_ridge_depind15` and `sim_may3_lasso_depind15` 56182343
+```{r}
+#lasso
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_may3_lasso_depind15_noscale_",i,".csv"))))
+}
+# (hs.train <- quantile(hs.int[,1],c(0.25,0.5,0.75)))
+# (hs.test <-quantile(hs.int[,3],c(0.25,0.5,0.75)))
+
+(hs.train <- quantile(hs.int[,5],c(0.25,0.5,0.75)))
+(hs.test <-quantile(hs.int[,6],c(0.25,0.5,0.75)))
+
+```
+
+```{r}
+#ridge
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_may3_ridge_depind15_noscale_",i,".csv"))))
+}
+# (hs.train <- quantile(hs.int[,1],c(0.25,0.5,0.75)))
+# (hs.test <-quantile(hs.int[,3],c(0.25,0.5,0.75)))
+
+(hs.train <- quantile(hs.int[,5],c(0.25,0.5,0.75)))
+(hs.test <-quantile(hs.int[,6],c(0.25,0.5,0.75)))
+
+```
+
+We can finally see a huge improvement from ridge!!! Ridge has RMSE of 58
+
+#May 6
+
+I need to do
+min version and bbs version of    `may1_sm_depind15_gpols`
+Running 
+[1,2,3,4,6,7,9] //may1_sm_depind15_gpols_bbig_init_min 56548248 ==> min
+[1,2,3,4,6,7,9] //may1_sm_depind15_gpols_bbig_init_bbs 57132971 ===> (first tested with low n.expan.degree of 1, but wouldn't be compatible with saved theta)
+may1_sm_depind15_gpols_bbig_init_bbs 57638137 is run to obtain predictions of bbs above
+#7 May
+##Min
+###Class assignment of train Train
+```{r}
+success.run <- c(1,2,3,4,6,7,9)
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+n.train <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_train_index.csv')$x)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_may1_sm_depind15_gpols_bbig_init_min_inpred__jobid_',i,'.feather'))))[,3]
+  dat.in <- tail(dat.in,n.train)
+  dat.in.ind <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_may1_sm_depind15_gpols_bbig_init_min_inpred__jobid_',i,'.feather'))))[,1]
+  dat.in.ind <- tail(dat.in.ind,n.train)
+  print(paste0('run: ',i))
+  print(table(age_tab$class[dat.in.ind],dat.in))
+}
+``` 
+Only run 9 actually discover the true classes. Actually perhaps run 9 is the only decent one according to RMSE of bbs below?
+
+##plot bbs
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <-1000*4
+runs <- c(1,2,3,4,6,7,9)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_may1_sm_depind15_gpols_bbig_init_bbs_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(7,30) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "iterations", y = "Value", color = "Run number")
+
+```
+
+```{r}
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0,40) +
+  theme_minimal() +
+  labs(title = "Train RMSE",x = "iterations", y = "Value", color = "Run number")
+```
+
+It's still super jumpy, but at least better than without smoothing.
+
+###Look at class assignment
+####Train
+Something wrong below... code not working
+```{r}
+success.run <- c(1,2,3,4,6,7,9)
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+n.train <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_train_index.csv')$x)
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/sim15_test_index.csv')$x)
+for(i in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_may1_sm_depind15_gpols_bbig_init_bbs_inpred__jobid_',i,'.feather'))))[,3]
+  dat.in <- tail(dat.in,n.train)
+  dat.in.ind <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/pile/sim_may1_sm_depind15_gpols_bbig_init_bbs_inpred__jobid_',i,'.feather'))))[,1]
+  dat.in.ind <- tail(dat.in.ind,n.train)
+  print(paste0('run: ',i))
+  print(table(age_tab$class[dat.in.ind],dat.in))
+}
+```

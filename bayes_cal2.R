@@ -277,7 +277,7 @@ meanstats.re<- function(filename, runs, mala_if, Sex = "all"){
   return(rbind(out,out.female,out.male))
 
 }
-
+####
 # print("start=========")
 # stat.ig <- meanstats.re("apr5_mala_weights_sub_adapt1_opt_V",c(1:10), mala_if=TRUE)
 # write.csv(stat.ig,paste0("/well/nichols/users/qcv214/bnn2/res3/pile/re_summary_may10_mala_mode.csv"))
@@ -309,12 +309,33 @@ meanstats.re<- function(filename, runs, mala_if, Sex = "all"){
 
 #2 Oct
 
-print("=========IG DONE=========")
-stat.eb <-meanstats.re("oct2_gender_gpgp_sgld_a4_b0_near", c(1:7,9:10), mala_if=FALSE)
-write.csv(stat.eb,paste0("/well/nichols/users/qcv214/KGPNN/pile/re_summary_oct2_gender_gpgp_sgld_near.csv"))
-print("=========IG DONE=========")
-stat.eb <-meanstats.re("oct2_nogender_gpgp_sgld_a4_b0_near", c(1:7,9:10), mala_if=FALSE)
-write.csv(stat.eb,paste0("/well/nichols/users/qcv214/KGPNN/pile/re_summary_oct2_nogender_gpgp_sgld_near.csv"))
+# print("=========IG DONE=========")
+# stat.eb <-meanstats.re("oct2_gender_gpgp_sgld_a4_b0_near", c(1:7,9:10), mala_if=FALSE)
+# write.csv(stat.eb,paste0("/well/nichols/users/qcv214/KGPNN/pile/re_summary_oct2_gender_gpgp_sgld_near.csv"))
+# print("=========IG DONE=========")
+# stat.eb <-meanstats.re("oct2_nogender_gpgp_sgld_a4_b0_near", c(1:7,9:10), mala_if=FALSE)
+# write.csv(stat.eb,paste0("/well/nichols/users/qcv214/KGPNN/pile/re_summary_oct2_nogender_gpgp_sgld_near.csv"))
 
+# print("=========IG DONE=========")
+# stat.eb <-meanstats.re("oct2_gender_gpnn_sgld_a4_b0_near", c(1:7,9:10), mala_if=FALSE)
+# write.csv(stat.eb,paste0("/well/nichols/users/qcv214/KGPNN/pile/re_summary_oct2_gender_gpnn_sgld_near.csv"))
+# print("=========IG DONE=========")
+# stat.eb <-meanstats.re("oct2_nogender_gpnn_sgld_a4_b0_near", c(1:7,9:10), mala_if=FALSE)
+# write.csv(stat.eb,paste0("/well/nichols/users/qcv214/KGPNN/pile/re_summary_oct2_nogender_gpnn_sgld_near.csv"))
+####
+# stat.eb <-meanstats.re("oct6_gender_gpgp_sgld_5a5_b0_near", c(1:7,9:10), mala_if=FALSE)
+# write.csv(stat.eb,paste0("/well/nichols/users/qcv214/KGPNN/pile/re_summary_oct6_gender_gpgp_sgld_near_5a5_b0.csv"))
+# 
+# stat.eb <-meanstats.re("oct6_gender_gpgp_sgld_a5_b0_near", c(1:7,9:10), mala_if=FALSE)
+# write.csv(stat.eb,paste0("/well/nichols/users/qcv214/KGPNN/pile/re_summary_oct6_gender_gpgp_sgld_near_a5_b0.csv"))
+# stat.eb <-meanstats.re("oct9_gender_gpgp_sgld_a3_b0_near", c(1:7,9:10), mala_if=FALSE)
+# write.csv(stat.eb,paste0("/well/nichols/users/qcv214/KGPNN/pile/re_summary_oct9_gender_gpgp_sgld_near_a3_b0.csv"))
+# 
+# stat.eb <-meanstats.re("oct9_gender_gpgp_sgld_5a4_b0_near", c(2,3,5:7,9:10), mala_if=FALSE)
+# write.csv(stat.eb,paste0("/well/nichols/users/qcv214/KGPNN/pile/re_summary_oct9_gender_gpgp_sgld_near_5a4_b0.csv"))
 
+stat.eb <-meanstats.re("oct21_gender_gpnn_sgld_5a3_b0_near", c(1,4:10), mala_if=FALSE)
+write.csv(stat.eb,paste0("/well/nichols/users/qcv214/KGPNN/pile/re_summary_oct21_gender_gpnn_sgld_near_5a3_b0.csv"))
 
+stat.eb <-meanstats.re("oct21_gender_gpnn_sgld_a3_b0_near", c(1:5,7:10), mala_if=FALSE)
+write.csv(stat.eb,paste0("/well/nichols/users/qcv214/KGPNN/pile/re_summary_oct21_gender_gpnn_sgld_near_a3_b0.csv"))
