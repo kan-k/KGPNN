@@ -12165,6 +12165,148 @@ ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color
 ```
 
 
+#9 July
+
+I plan to include a range of cognitive performance from subjects rather than age, see how I used depind below and do something similar
+
+##13 December 
+
+1. Need to cross check if the data is still the same for Age.tsv and `/well/nichols/projects/UKB/SMS/ukb_latest-Confs.tsv`
+  1.2 26410:Index of Multiple Deprivation (England)	Indices of Multiple Deprivation  , 26427 Index of Multiple Deprivation (Scotland)	Indices of Multiple Deprivation  
+ 26426, Index of Multiple Deprivation (Wales)	Indices of Multiple Deprivation  
+ 
+ 1.3: I wonder if I should calibrate England, Scot and Wales to be on the same scale e.g. by standardising. Or should I just use the raw values?
+
+  1.4
+2. create a null model for non-imaging
+
+###Look at Confs
+```{r}
+confs.dat<-read.table(file = '/well/nichols/projects/UKB/SMS/ukb_latest-Confs.tsv', sep = '\t', header = TRUE) #46535 53
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/age_sex_strat.feather'))
+
+#check intersection of the new deprivation index for each country, check if the sum of non NA is equal to the nrow
+nrow(confs.dat) == sum(sum(!is.na(confs.dat$X26410.0.0))+sum(!is.na(confs.dat$X26427.0.0))+sum(!is.na(confs.dat$X26426.0.0)))
+#46535 vs 45429 ===> meaning 1000 rows have all NA
+
+#I will create a new combined column that takes the sum and ignore the NA
+#length(apply(cbind(confs.dat$X26410.0.0,confs.dat$X26427.0.0,confs.dat$X26426.0.0),1,FUN = sum,na.rm=TRUE))
+confs.dat$combDepInd <- apply(cbind(confs.dat$X26410.0.0,confs.dat$X26427.0.0,confs.dat$X26426.0.0),1,FUN = mean,na.rm=TRUE) 
+# if we use `sum` instead of `mean` above then it will convert NA to 0. Using `mean` will keep `mean` the same.
+#sum(is.na(confs.dat$combDepInd)) = 0 wtf
+```
+
+impute 3% of the missing index using mean
+I will use MEDIAN since there is no other correlated data to predict this
+```{r}
+age_tab$DepInd <- vector(mode='numeric',length = nrow(age_tab))
+for(i in 1:length(age_tab$id)){
+  age_tab$DepInd[i] <- confs.dat$combDepInd[confs.dat$eid_8107==sub(".", "",age_tab$id[i])]
+} 
+summary(age_tab$DepInd) #NA's = 117 #only 3% is missing 
+
+#Lets impute using means perhaps.
+median_value <- median(age_tab$DepInd, na.rm = TRUE)
+age_tab$DepInd[is.na(age_tab$DepInd)] <- median_value
+
+#write_feather(age_tab, '/well/nichols/users/qcv214/KGPNN/age_sex_strat_depind.feather')
+```
+
+```{r}
+boxplot(age_tab$DepInd~ as.factor(age_tab$sex), 
+        xlab = "Sex", 
+        ylab = "Values", 
+        main = "Boxplot of Values by Sex")
+```
+```{r}
+library(ggplot2)
+# Assuming dep.vec and sex are defined as before
+dep.vec_df <- data.frame(value = age_tab$DepInd, sex = as.factor(age_tab$sex))
+
+# Create the histogram using ggplot
+ggplot(dep.vec_df, aes(x = value, fill = sex)) +
+  geom_histogram(position = "identity", alpha = 0.5, bins = 10) +
+  labs(title = "Histogram of Values by Sex", x = "Values", y = "Frequency") +
+  scale_fill_manual(values = c("red", "blue")) +
+  theme_minimal()
+```
+Male and female have similar distributions. 
+
+```{r}
+# Assuming dep.vec is your numeric vector
+dep.vec <- age_tab$DepInd
+# Calculate the quantile thresholds (0%, 10%, 20%, ..., 100%)
+quantile_thresholds <- quantile(dep.vec, probs = seq(0, 1, by = 0.1))
+# Split dep.vec into quantiles
+dep.vec_quantiles <- cut(dep.vec, breaks = quantile_thresholds, include.lowest = TRUE, labels = FALSE)
+# Print the quantile group for each value in dep.vec
+dep.vec_quantiles
+```
+
+##Looking at the new file `ukb_latest-Cog.tsv`
+20016 FLuid Intelligence (normally dist, 0-13)
+6348  Duration to complete numeric path (trail #1) => left skewed 92 -2557
+6350 	Duration to complete alphanumeric path (trail #2) => left skewed 160-2988
+6373  Number of puzzles correctly solved => right skewed 0 - 15
+```{r}
+cog.dat<-read.table(file = '/well/nichols/projects/UKB/SMS/ukb_latest-Cog.tsv', sep = '\t', header = TRUE) #46535 53
+summary(cog.dat)
+#many missing values
+```
+The idea is to grab the mean of xxx.1.0 and xxx.2.0 and xxx.3.0 to average it.
+```{r}
+#fluid intelligence
+cog.dat$fi <- apply(cbind(cog.dat$X20016.0.0,cog.dat$X20016.1.0,cog.dat$X20016.2.0,cog.dat$X20016.3.0),1,FUN = mean,na.rm=TRUE) 
+#numeric path
+cog.dat$num <- apply(cbind(cog.dat$X6348.2.0,cog.dat$X6348.3.0),1,FUN = mean,na.rm=TRUE) 
+#alphanumeric
+cog.dat$alphnum <- apply(cbind(cog.dat$X6350.2.0,cog.dat$X6350.3.0),1,FUN = mean,na.rm=TRUE) 
+#puzzles
+cog.dat$puzzle <-  apply(cbind(cog.dat$X6373.2.0,cog.dat$X6373.3.0),1,FUN = mean,na.rm=TRUE) 
+```
+
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/age_sex_strat_depind.feather'))
+
+#something along bottom line
+for(i in 1:length(age_tab$id)){
+  ind <- cog.dat$eid_8107==sub(".", "",age_tab$id[i])
+  age_tab$fi[i] <- cog.dat$fi[ind]
+  age_tab$num[i] <- cog.dat$num[ind]
+  age_tab$alphnum[i] <- cog.dat$alphnum[ind]
+  age_tab$puzzle[i] <- cog.dat$puzzle[ind]
+  
+} 
+```
+```{r}
+summary(age_tab$fi)
+summary(age_tab$num)
+summary(age_tab$alphnum)
+summary(age_tab$puzzle)
+```
+
+There are so many missing values. I think I will have to create another dataset for this.
+
+Original data
+```{r}
+part_list<-read.table('/well/nichols/users/qcv214/Placement_2/participant_list.txt', header = FALSE, sep = "", dec = ".") #4529 participants
+part_list$exist_vbm <- file.exists(paste0('/well/win-biobank/projects/imaging/data/data3/subjectsAll/',part_list[,1],'/T1/T1_vbm/T1_GM_to_template_GM_mod.nii.gz'))
+#These two are equal
+part_use<-part_list[part_list$exist_vbm==1,] #4262 participants left
+```
+
+Extended data
+```{r}
+part_list2 <- read.csv('/well/nichols/users/qcv214/bnn2/add_1_part_id_use_final.txt')$V1 #4258
+part_list2.exist_vbm <- file.exists(paste0('/well/win-biobank/projects/imaging/data/data3/subjectsAll/',part_list2,'/T1/T1_vbm/T1_GM_to_template_GM_mod.nii.gz'))
+part_use2 <-part_list2[part_list2.exist_vbm] #length = 4257
+```
+
+
+
+
+
+
 
 
 
