@@ -652,7 +652,7 @@ ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color
 
 All these seem to be overfitting, I will reduce number of latent classes to 3
 
-july15_rawnum_sm_gpnn_init 1173788
+july15_rawnum_sm_gpnn_init 1174402
 july15_rawnum_sm_gpols_init 1173756 
 
 
