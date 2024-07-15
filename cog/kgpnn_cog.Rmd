@@ -1,0 +1,661 @@
+---
+title: "cognitive_modelling"
+author: "Kan Keeratimahat"
+date: "10/07/2024"
+output: html_document
+---
+
+#9 July
+
+I plan to include a range of cognitive performance from subjects rather than age, see how I used depind below and do something similar
+
+##Looking at the new file `ukb_latest-Cog.tsv`
+20016 FLuid Intelligence (normally dist, 0-13)
+6348  Duration to complete numeric path (trail #1) => left skewed 92 -2557
+6350 	Duration to complete alphanumeric path (trail #2) => left skewed 160-2988
+6373  Number of puzzles correctly solved => right skewed 0 - 15
+
+```{r}
+cog.dat<-read.table(file = '/well/nichols/projects/UKB/SMS/ukb_latest-Cog.tsv', sep = '\t', header = TRUE) #46535 53
+summary(cog.dat)
+#many missing values
+```
+The idea is to grab the mean of xxx.1.0 and xxx.2.0 and xxx.3.0 to average it.
+```{r}
+#fluid intelligence
+cog.dat$fi <- apply(cbind(cog.dat$X20016.0.0,cog.dat$X20016.1.0,cog.dat$X20016.2.0,cog.dat$X20016.3.0),1,FUN = mean,na.rm=TRUE) 
+#numeric path
+cog.dat$num <- apply(cbind(cog.dat$X6348.2.0,cog.dat$X6348.3.0),1,FUN = mean,na.rm=TRUE) 
+#alphanumeric
+cog.dat$alphnum <- apply(cbind(cog.dat$X6350.2.0,cog.dat$X6350.3.0),1,FUN = mean,na.rm=TRUE) 
+#puzzles
+cog.dat$puzzle <-  apply(cbind(cog.dat$X6373.2.0,cog.dat$X6373.3.0),1,FUN = mean,na.rm=TRUE) 
+```
+
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/age_sex_strat_depind.feather'))
+
+#something along bottom line
+for(i in 1:length(age_tab$id)){
+  ind <- cog.dat$eid_8107==sub(".", "",age_tab$id[i])
+  age_tab$fi[i] <- cog.dat$fi[ind]
+  age_tab$num[i] <- cog.dat$num[ind]
+  age_tab$alphnum[i] <- cog.dat$alphnum[ind]
+  age_tab$puzzle[i] <- cog.dat$puzzle[ind]
+  
+} 
+```
+```{r}
+summary(age_tab$fi)
+summary(age_tab$num)
+summary(age_tab$alphnum)
+summary(age_tab$puzzle)
+```
+
+There are so many missing values. I think I will have to create another dataset for this.
+
+Original data
+```{r}
+part_list<-read.table('/well/nichols/users/qcv214/Placement_2/participant_list.txt', header = FALSE, sep = "", dec = ".") #4529 participants
+part_list$exist_vbm <- file.exists(paste0('/well/win-biobank/projects/imaging/data/data3/subjectsAll/',part_list[,1],'/T1/T1_vbm/T1_GM_to_template_GM_mod.nii.gz'))
+#These two are equal
+part_use<-part_list[part_list$exist_vbm==1,] #4262 participants left
+```
+
+Extended data
+```{r}
+part_list2 <- read.csv('/well/nichols/users/qcv214/bnn2/add_1_part_id_use_final.txt')$V1 #4258
+part_list2.exist_vbm <- file.exists(paste0('/well/win-biobank/projects/imaging/data/data3/subjectsAll/',part_list2,'/T1/T1_vbm/T1_GM_to_template_GM_mod.nii.gz'))
+part_use2 <-part_list2[part_list2.exist_vbm] #length = 4257
+```
+
+```{r}
+part.combined <- c(part_use$V1,part_use2)
+```
+
+```{r}
+agetab<-read.table(file = '/well/nichols/projects/UKB/SMS/ukb_latest-Age.tsv', sep = '\t', header = TRUE)
+age_tab<-as.data.frame(matrix(,nrow = length(part.combined),ncol = 3)) #id, age, number of masked voxels
+colnames(age_tab)[1:3]<-c('id','age','sex')
+age_tab$id<-part.combined
+# for(i in 1:length(part.combined)){
+#   age_tab$age[i]<-agetab$X21003.2.0[agetab$eid_8107==sub(".", "",age_tab$id[i])]
+#   age_tab$sex[i]<-agetab$X31.0.0[agetab$eid_8107==sub(".", "",age_tab$id[i])]
+# }
+```
+
+###Deprivation index
+```{r}
+confs.dat<-read.table(file = '/well/nichols/projects/UKB/SMS/ukb_latest-Confs.tsv', sep = '\t', header = TRUE) #46535 53
+confs.dat$combDepInd <- apply(cbind(confs.dat$X26410.0.0,confs.dat$X26427.0.0,confs.dat$X26426.0.0),1,FUN = mean,na.rm=TRUE) 
+```
+
+
+For the above, I should combine it with cognitive
+###Cognitive
+```{r}
+cog.dat<-read.table(file = '/well/nichols/projects/UKB/SMS/ukb_latest-Cog.tsv', sep = '\t', header = TRUE) #46535 53
+summary(cog.dat)
+#many missing values
+```
+The idea is to grab the mean of xxx.1.0 and xxx.2.0 and xxx.3.0 to average it.
+```{r}
+#fluid intelligence
+cog.dat$fi <- apply(cbind(cog.dat$X20016.0.0,cog.dat$X20016.1.0,cog.dat$X20016.2.0,cog.dat$X20016.3.0),1,FUN = mean,na.rm=TRUE) 
+#numeric path
+cog.dat$num <- apply(cbind(cog.dat$X6348.2.0,cog.dat$X6348.3.0),1,FUN = mean,na.rm=TRUE) 
+#alphanumeric
+cog.dat$alphnum <- apply(cbind(cog.dat$X6350.2.0,cog.dat$X6350.3.0),1,FUN = mean,na.rm=TRUE) 
+#puzzles
+cog.dat$puzzle <-  apply(cbind(cog.dat$X6373.2.0,cog.dat$X6373.3.0),1,FUN = mean,na.rm=TRUE) 
+```
+
+```{r}
+
+#something along bottom line
+for(i in 1:length(age_tab$id)){
+  age_tab$age[i]<-agetab$X21003.2.0[agetab$eid_8107==sub(".", "",age_tab$id[i])]
+  age_tab$sex[i]<-agetab$X31.0.0[agetab$eid_8107==sub(".", "",age_tab$id[i])]
+  
+  ind.dep <- confs.dat$eid_8107==sub(".", "",age_tab$id[i])
+  age_tab$DepInd[i] <- confs.dat$combDepInd[ind.dep]
+  
+  ind <- cog.dat$eid_8107==sub(".", "",age_tab$id[i])
+  age_tab$fi[i] <- cog.dat$fi[ind]
+  age_tab$num[i] <- cog.dat$num[ind]
+  age_tab$alphnum[i] <- cog.dat$alphnum[ind]
+  age_tab$puzzle[i] <- cog.dat$puzzle[ind]
+  
+} 
+# summary(age_tab$fi)
+# summary(age_tab$num)
+# summary(age_tab$alphnum)
+# summary(age_tab$puzzle)
+# dim is 8519 x 8
+```
+
+remove rows wityh any NaN
+```{r}
+age_tab2 <- na.omit(age_tab)
+dim(age_tab2)
+```
+
+View the data distribution
+
+```{r}
+age_tab2 <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat.feather'))
+
+
+for(i in 2:ncol(age_tab2)){
+  
+  if(i %in% c(5,6,8)){
+    titl <- paste0("histogram of : log-",colnames(age_tab2)[i])
+    hist(log(age_tab2[,i]), main = titl, xlab = paste0("log-",colnames(age_tab2)[i]))
+  }
+    # } else{
+    titl <- paste0("histogram of : ",colnames(age_tab2)[i])
+    hist((age_tab2[,i]), main = titl, xlab = colnames(age_tab2)[i])
+  # }
+  
+}
+```
+I think there is nothing to stratify (apart from sex, which can perhaps be stratify during selection) after doing log transformation on tasks
+Stratify by sex
+```{r}
+library(dplyr)
+# Check the counts of each sex category
+sex_counts <- table(age_tab2$sex)
+# Determine the minimum count
+min_count <- min(sex_counts)
+# Stratify the data
+balanced_age_tab <- age_tab2 %>%
+  group_by(sex) %>%
+  sample_n(size = min_count)
+#left with 5204 subjects
+```
+
+Sort age by sex
+```{r}
+# Sort the entire dataframe by age and group by sex
+balanced_age_tab <- balanced_age_tab %>%
+  split(.$sex) %>%
+  lapply(function(x) x[order(x$age),]) %>%
+  bind_rows()
+```
+
+
+Save the data
+##Data
+```{r}
+# write_feather(balanced_age_tab, '/well/nichols/users/qcv214/KGPNN/cog/agesex_strat.feather')
+```
+
+```{r}
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat.feather'))
+```
+
+Note that 5204/2.6 gives 2001
+```{r}
+train.ind <- round(seq(1,5204,2.6)) #gives 2002
+train.ind <- train.ind[-2001:-2002]
+
+test.ind <- round(seq(2,5204,2.6)) #gives 2001
+test.ind <- test.ind[-2001]
+
+#test overlap
+sum(train.ind %in% test.ind) # = 0, so no overlap
+
+
+```
+
+Look at the dist
+Train
+```{r}
+for(i in 2:ncol(age_tab2)){
+  
+  if(i %in% c(5,6,8)){
+    titl <- paste0("histogram of : log-",colnames(age_tab2)[i])
+    hist(log(age_tab2[train.ind,i]), main = titl)
+  } else{
+    titl <- paste0("histogram of : ",colnames(age_tab2)[i])
+    hist((age_tab2[train.ind,i]), main = titl)
+  }
+  
+}
+```
+
+Test
+```{r}
+for(i in 2:ncol(age_tab2)){
+  
+  if(i %in% c(5,6,8)){
+    titl <- paste0("histogram of : log-",colnames(age_tab2)[i])
+    hist(log(age_tab2[test.ind,i]), main = titl)
+  } else{
+    titl <- paste0("histogram of : ",colnames(age_tab2)[i])
+    hist((age_tab2[test.ind,i]), main = titl)
+  }
+  
+}
+```
+
+```{r}
+write.csv(train.ind, file = '/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv', row.names = FALSE)
+write.csv(test.ind, file = '/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv', row.names = FALSE)
+```
+
+
+
+
+###Some note on stratifying
+####Stratify the data by using downsampling on sex
+```{r}
+# Check the counts of each sex category
+sex_counts <- table(age_tab$sex)
+# Determine the minimum count
+min_count <- min(sex_counts)
+# Stratify the data
+balanced_age_tab <- age_tab %>%
+  group_by(sex) %>%
+  sample_n(size = min_count)
+```
+This `balanced_age_tab` is stratified correctly, and ordered by sex. amount is 1971 in each.
+
+Sort age by sex
+```{r}
+# Sort the entire dataframe by age and group by sex
+balanced_age_tab <- balanced_age_tab %>%
+  split(.$sex) %>%
+  lapply(function(x) x[order(x$age),]) %>%
+  bind_rows()
+```
+
+```{r}
+#write_feather(balanced_age_tab, '/well/nichols/users/qcv214/KGPNN/age_sex_strat.feather')
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/age_sex_strat.feather'))
+```
+
+
+
+
+Running 
+[canceled] july10_num_sm_gpnn_init 678437 => modelling log(num) with 10 subclasses.  ===> it takes too long per epoch, i will change it to 250 search
+//re_cog_july10_ridge (and lasso) 680547 => ridge and lasso with non-imaging... accidentally saved in the old folder
+//july10_num_sm_gpols_init 681168 
+
+
+##Load up ridge and lasso results
+```{r}
+#lasso
+runs.hs <- 1:1
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_cog_july10_lasso_noscale_",i,".csv"))))
+}
+# (hs.train <- quantile(hs.int[,1],c(0.25,0.5,0.75)))
+# (hs.test <-quantile(hs.int[,3],c(0.25,0.5,0.75)))
+
+(l.train <- quantile(hs.int[,5],c(0.5)))
+(l.test <-quantile(hs.int[,6],c(0.5)))
+
+#ridge
+runs.hs <- 1:1
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_cog_july10_ridge_noscale_",i,".csv"))))
+}
+# (hs.train <- quantile(hs.int[,1],c(0.25,0.5,0.75)))
+# (hs.test <-quantile(hs.int[,3],c(0.25,0.5,0.75)))
+
+(r.train <- quantile(hs.int[,5],c(0.5)))
+(r.test <-quantile(hs.int[,6],c(0.5)))
+
+```
+Lasso is better on held-out than ridge. Interesting
+
+#11 July
+
+##Plot param search of gpolsoptions(bitmapType='cairo')
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <-500*4
+runs <- 1:10
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_july10_num_sm_gpols_init_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0,.5) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "iterations", y = "Value", color = "Run number")
+
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0,.5) +
+  theme_minimal() +
+  labs(title = "Train RMSE",x = "iterations", y = "Value", color = "Run number")
+```
+There doesnt'seem to be any learning overtime. Let's try bbs.
+
+running
+[Wrong] july10_num_sm_gpols_init_bbs 809259  ===> it's WRONG I was evaluating age but not lognum. I'll delete it
+//july10_num_sm_gpols_init_bbs 1034923
+//july10_num_sm_gpnn_init 809303 => modelling log(num) with 10 subclasses.  250 search
+
+
+
+#12 July
+## gpols bbs
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <-500*4
+runs <- 1:10
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_july10_num_sm_gpols_init_bbs_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(log(age_tab$num)), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0.2,.4) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "iterations", y = "Value", color = "Run number")
+
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(log(age_tab$num)), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0.2,.4) +
+  theme_minimal() +
+  labs(title = "Train RMSE",x = "iterations", y = "Value", color = "Run number")
+```
+It shouldn't be shotting up like this, this is unacceptable results.  ****
+
+
+
+##Gpnn
+##Plot param search of gpolsoptions(bitmapType='cairo')
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 250*4
+runs <- c(3,5:10)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_july10_num_sm_gpnn_init_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0.2,.5) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "iterations", y = "Value", color = "Run number")
+
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0.2,.5) +
+  theme_minimal() +
+  labs(title = "Train RMSE",x = "iterations", y = "Value", color = "Run number")
+```
+This still doesn't beat linear model. let's try bbs and see
+
+Running
+[1,5,6,7,8,10] //july10_num_sm_gpnn_init_bbs. 1038515
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 250*4
+runs <- c(1,5,6,7,8,10)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_july10_num_sm_gpnn_init_bbs_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = sd(log(age_tab$num)), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0.2,.4) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "iterations", y = "Value", color = "Run number")
+
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = sd(log(age_tab$num)), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0.2,.4) +
+  theme_minimal() +
+  labs(title = "Train RMSE",x = "iterations", y = "Value", color = "Run number")
+```
+why is GPNN worse than GPOLS
+
+Let's look at sd of our problem
+
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat.feather'))
+#age_tab <- age_tab[order(age_tab$id),].     #DOES THIS MESS UP ORDER
+lognum <- log(age_tab$num)
+print(sd(lognum))
+```
+
+What if we try modelling the raw values instead of log num? perhaps non-gaussian assumption can make gpnn standout?
+
+Running
+july14_rawnum_sm_gpnn_init 1152691
+july14_rawnum_sm_gpols_init 1152693
+re_rcog_july14_ridge (and lasso) 1166295
+
+#15 July
+
+Doing `raw num` instead of `log num`
+
+##Load up ridge and lasso results
+```{r}
+#lasso
+runs.hs <- 1:1
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_rcog_july14_lasso_noscale_",i,".csv"))))
+}
+# (hs.train <- quantile(hs.int[,1],c(0.25,0.5,0.75)))
+# (hs.test <-quantile(hs.int[,3],c(0.25,0.5,0.75)))
+
+(l.train <- quantile(hs.int[,5],c(0.5)))
+(l.test <-quantile(hs.int[,6],c(0.5)))
+
+#ridge
+runs.hs <- 1:1
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_rcog_july14_ridge_noscale_",i,".csv"))))
+}
+# (hs.train <- quantile(hs.int[,1],c(0.25,0.5,0.75)))
+# (hs.test <-quantile(hs.int[,3],c(0.25,0.5,0.75)))
+
+(r.train <- quantile(hs.int[,5],c(0.5)))
+(r.test <-quantile(hs.int[,6],c(0.5)))
+
+```
+Lasso held out is better than held in??
+
+##gpols
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <-500*4
+runs <- 1:10
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_july14_rawnum_sm_gpols_init_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = sd(age_tab$num), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(60,100) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "iterations", y = "Value", color = "Run number")
+
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = sd(age_tab$num), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(40,100) +
+  theme_minimal() +
+  labs(title = "Train RMSE",x = "iterations", y = "Value", color = "Run number")
+```
+
+##gpols
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <-250*4
+runs <- c(2,6,9)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_july14_rawnum_sm_gpnn_init_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$num), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(70,100) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "iterations", y = "Value", color = "Run number")
+
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = sd(age_tab$num), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0,100) +
+  theme_minimal() +
+  labs(title = "Train RMSE",x = "iterations", y = "Value", color = "Run number")
+```
+
+All these seem to be overfitting, I will reduce number of latent classes to 3
+
+july15_rawnum_sm_gpnn_init 1173788
+july15_rawnum_sm_gpols_init 1173756 
+
+
+
+
+
