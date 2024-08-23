@@ -220,6 +220,6 @@ meanstats.re<- function(filename, runs, mala_if){
 
 success.run <- c(1:10)
 for(run in success.run){
-  stat.eb <-meanstats.re("june6_sm_depind15_gpols_once_init_sgld", run, mala_if=FALSE)
-  write.csv(stat.eb,paste0("/well/nichols/users/qcv214/KGPNN/pile/summary_re_june6_sm_depind_gpols_once_init_sgld_",run,".csv"))
+  stat.eb <-meanstats.re("june13_sm_depind_gpols_once_init_sgld", run, mala_if=FALSE)
+  write.csv(stat.eb,paste0("/well/nichols/users/qcv214/KGPNN/pile/summary_re_june13_sm_depind_gpols_once_init_sgld_",run,".csv"))
 }
