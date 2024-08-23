@@ -1157,6 +1157,79 @@ age_tab$pm_tf <- qnorm((rank(age_tab$pm,na.last="keep")-0.5)/sum(!is.na(age_tab$
 # write_feather(age_tab, '/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather')
 ```
 
+
+###UPDATE 8 AUG 24
+I am applying inverse transform on held-in, keep the pre-learn transformation and apply it onto held-out.
+
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+train.test.ind <- list()
+train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x
+train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x
+```
+```{r}
+# Load necessary packages
+if (!require(scales)) install.packages("scales")
+if (!require(caret)) install.packages("caret")
+library(scales)
+library(caret)
+library(ggplot2)
+
+# Assuming age_tab and train.test.ind are already defined with the response variable called 'pm'
+
+# Function to perform Gaussian Inverse Transformation on training data
+gaussian_inverse_transform_train <- function(response_variable) {
+  # Rank transformation
+  ranks <- rank(response_variable)
+  
+  # Normal quantile transformation
+  normal_quantiles <- qnorm((ranks - 0.5) / length(ranks))
+  
+  return(list(
+    transformed = normal_quantiles,
+    ecdf_fn = ecdf(response_variable)  # Empirical CDF function for the training data
+  ))
+}
+
+# Apply pre-learned transformation to new data
+apply_prelearned_transformation <- function(test_response_variable, ecdf_fn) {
+  # Apply the ECDF to the test data
+  ecdf_values <- ecdf_fn(test_response_variable)
+  
+  # Replace exact 0 and 1 values
+  ecdf_values[ecdf_values == 0] <- .Machine$double.eps
+  ecdf_values[ecdf_values == 1] <- 1 - .Machine$double.eps
+  
+  # Normal quantile transformation using the ECDF values
+  normal_quantiles <- qnorm(ecdf_values)
+  
+  return(normal_quantiles)
+}
+
+# Learn the transformation on the training set
+train_indices <- train.test.ind$train
+test_indices <- train.test.ind$test
+
+train_lognum <- age_tab$pm[train_indices]
+
+# Apply the Gaussian Inverse Transformation on the training set
+train_transformation <- gaussian_inverse_transform_train(train_lognum)
+
+# Add the transformed training values back to the dataframe
+age_tab$pm_tf <- NA
+age_tab$pm_tf[train_indices] <- train_transformation$transformed
+
+# Apply the learned transformation on the test set
+test_lognum <- age_tab$pm[test_indices]
+test_transformed <- apply_prelearned_transformation(test_lognum, train_transformation$ecdf_fn)
+
+# Add the transformed test values back to the dataframe
+age_tab$pm_tf[test_indices] <- test_transformed
+
+# write_feather(age_tab, '/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather')
+```
+
+
 ```{r}
 hist(age_tab$pm_tf)
 plot(density(age_tab$pm_tf))
@@ -1628,6 +1701,76 @@ test.ind <- train.ind+1
 #test overlap
 sum(train.ind %in% test.ind) # = 897, so many overlaps
 ```
+###12 August, correct inverse transform
+
+```{r}
+# Load necessary packages
+if (!require(scales)) install.packages("scales")
+if (!require(caret)) install.packages("caret")
+library(scales)
+library(caret)
+library(ggplot2)
+
+# Assuming age_tab and train.test.ind are already defined with the response variable called 'pm'
+
+# Function to perform Gaussian Inverse Transformation on training data
+gaussian_inverse_transform_train <- function(response_variable) {
+  # Rank transformation
+  ranks <- rank(response_variable)
+  
+  # Normal quantile transformation
+  normal_quantiles <- qnorm((ranks - 0.5) / length(ranks))
+  
+  return(list(
+    transformed = normal_quantiles,
+    ecdf_fn = ecdf(response_variable)  # Empirical CDF function for the training data
+  ))
+}
+
+# Apply pre-learned transformation to new data
+apply_prelearned_transformation <- function(test_response_variable, ecdf_fn) {
+  # Apply the ECDF to the test data
+  ecdf_values <- ecdf_fn(test_response_variable)
+  
+  # Replace exact 0 and 1 values
+  ecdf_values[ecdf_values == 0] <- .Machine$double.eps
+  ecdf_values[ecdf_values == 1] <- 1 - .Machine$double.eps
+  
+  # Normal quantile transformation using the ECDF values
+  normal_quantiles <- qnorm(ecdf_values)
+  
+  return(normal_quantiles)
+}
+
+# Learn the transformation on the training set
+train_indices <- train.ind
+test_indices <- test.ind
+
+train_lognum <- age_tab_dmn$pm[train_indices]
+
+# Apply the Gaussian Inverse Transformation on the training set
+train_transformation <- gaussian_inverse_transform_train(train_lognum)
+
+# Add the transformed training values back to the dataframe
+age_tab_dmn$pm_tf <- NA
+age_tab_dmn$pm_tf[train_indices] <- train_transformation$transformed
+
+# Apply the learned transformation on the test set
+test_lognum <- age_tab_dmn$pm[test_indices]
+test_transformed <- apply_prelearned_transformation(test_lognum, train_transformation$ecdf_fn)
+
+# Add the transformed test values back to the dataframe
+age_tab_dmn$pm_tf[test_indices] <- test_transformed
+write_feather(age_tab_dmn, '/well/nichols/users/qcv214/KGPNN/cog/age_dmn_sex_strat.feather')
+```
+
+```{r}
+plot(density(age_tab_dmn$pm_tf[train.ind]), main = "Density Plot of Normal-inversed transformed of Pair Matching",
+     xlab = "transformed pair matching", ylab = "Density", col = "blue", lwd = 2)
+lines(density(age_tab_dmn$pm_tf[test.ind]), col = "red", lwd = 2)
+legend('topright',legend = c('Training','Test'),lty=c(1),col=c('blue','red'))
+```
+
 
 ```{r}
 # write.csv(train.ind, file = '/well/nichols/users/qcv214/KGPNN/cog/cog_dmn_train_index.csv', row.names = FALSE)
@@ -2027,4 +2170,907 @@ GPNN without latent classes overfits too easily. This is good findings, meaning 
 
 Is it OLS-GP that I need to compare it to tho??
 
-aug7_pm_gpols_12init. 3869534
+//aug7_pm_gpols_12init. 3869534
+
+##GPOLS without latent class
+###param search
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <-500*4
+runs <- c(1:10)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug7_pm_gpols_12init_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0.99,1.1) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "iterations", y = "Value", color = "Run number")
+
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0,1.1) +
+  theme_minimal() +
+  labs(title = "Train RMSE",x = "iterations", y = "Value", color = "Run number")
+```
+
+
+//aug7_pm_gpols_12init_bbs  3876485
+##GPOLS bbs
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <-500*4
+runs <- c(1:10)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug7_pm_gpols_12init_bbs_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0.99,1.1) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "iterations", y = "Value", color = "Run number")
+
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0,1.1) +
+  theme_minimal() +
+  labs(title = "Train RMSE",x = "iterations", y = "Value", color = "Run number")
+```
+This is saying that WITHOUT latent class, gpols version is worse than k-gpols!!!
+
+Note that the current test s.d. line isn't correct, I am to re-run the analysis on the new pm transformation.
+
+
+#8 Aug
+
+IMPORTANT:
+I have overwrote the save of `agesex_strat2.feather`. I am applying inverse transform on held-in, keep the pre-learn transformation and apply it onto held-out.
+
+
+I will re-run everything.
+
+[1:10]//aug9_pm_gpols_12init  4090379
+//re_aug9_pm_gpr_noscale_  4090389
+//re_pm_aug9_ridge_noscale_ 4090399
+[1:5,7,8,10]// aug9_pm_sm_gpgp_12init  4090427
+[2,3,8:10]//aug9_pm_sm_gpnn_12init  4090462
+[1:10]//aug9_pm_sm_gpols_12init  4090443
+[1:4,8,9]//aug9_pm_bi_gpnn_init   4090467
+aug9_pm_bi_gpols_init 4379501 ==> new
+
+###bbs
+
+[1:10] aug9_pm_gpols_12init_bbs 4363146
+[1:8,10] aug9_pm_sm_gpgp_12init_bbs  4363162
+[1,2,4,6,10] aug9_pm_sm_gpnn_12init_bbs  4363177
+[1:10]aug9_pm_sm_gpols_12init_bbs  4363170
+[2,7,9] aug9_pm_bi_gpnn_init_bbs   4363181
+
+#9 aug 
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+train.test.ind <- list()
+train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x
+train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x
+```
+###Ridge
+```{r}
+#lasso
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_lasso_noscale_",i,".csv"))))
+}
+(l.train <- quantile(hs.int[,5],c(0.5)))
+(l.test <-quantile(hs.int[,6],c(0.5)))
+
+#ridge
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_ridge_noscale_",i,".csv"))))
+}
+(r.train <- quantile(hs.int[,5],c(0.5)))
+(r.test <-quantile(hs.int[,6],c(0.5)))
+
+#ridge
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpr_noscale_",i,".csv"))))
+}
+(gpr.train <- quantile(hs.int[,5],c(0.5)))
+(gpr.test <-quantile(hs.int[,6],c(0.5)))
+```
+
+##Now do all the plotting
+[1:10] aug9_pm_gpols_12init_bbs 4363146
+[1:8,10] aug9_pm_sm_gpgp_12init_bbs  4363162
+[1,2,4,6,10] aug9_pm_sm_gpnn_12init_bbs  4363177
+[1:10]aug9_pm_sm_gpols_12init_bbs  4363170
+[2,7,9] aug9_pm_bi_gpnn_init_bbs   4363181
+###vanilla gpols Plot bbs
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <-500*4
+runs <- c(1:10)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpols_12init_bbs_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0.99,1.1) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "iterations", y = "Value", color = "Run number")
+
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0.88,1.1) +
+  theme_minimal() +
+  labs(title = "Train RMSE",x = "iterations", y = "Value", color = "Run number")
+```
+###gpols bbs
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <-500*4
+runs <- c(2:3,5:6,9)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpols_12init_bbs_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0.99,1.1) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "iterations", y = "Value", color = "Run number")
+
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0.88,1.1) +
+  theme_minimal() +
+  labs(title = "Train RMSE",x = "iterations", y = "Value", color = "Run number")
+```
+###gpgp bbs
+
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <-500*4
+runs <- c(1:8,10)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpgp_12init_bbs_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0.99,1.1) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "iterations", y = "Value", color = "Run number")
+
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0,1.1) +
+  theme_minimal() +
+  labs(title = "Train RMSE",x = "iterations", y = "Value", color = "Run number")
+```
+###gpnn bbs
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <-500*4
+runs <- c(1,2,4,6,10)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpnn_12init_bbs_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0.99,1.1) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "iterations", y = "Value", color = "Run number")
+
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0,1.1) +
+  theme_minimal() +
+  labs(title = "Train RMSE",x = "iterations", y = "Value", color = "Run number")
+```
+
+####Observe class assignment 
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)  # Ensure this package is installed for reading feather files
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(2,3,5,9)
+
+for (r in success.run) {
+  # Load and process data
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpols_12init_bbs_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  
+  # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd','pm_tf')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pm_tf)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('age', 'sex', 'DepInd','pm_tf', 'pred', 'SqError', 'class')
+  
+  # Calculate class sizes
+  class_sizes <- age.in %>%
+    group_by(class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, SqError,pm_tf), names_to = "variable", values_to = "value")
+  
+  # Create the boxplot with class sizes in the legend
+  p <- ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+    geom_boxplot() +
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Age, Sex, and DepInd, tf_pm, Labeled by Class for Run", r),
+         x = "Class",
+         y = "Value") +
+    scale_fill_discrete(labels = class_labels)
+  
+  print(p)
+}
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)  # Ensure this package is installed for reading feather files
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(2, 3, 5, 9)
+
+for (r in success.run) {
+  # Load and process data
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpols_12init_bbs_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  
+  # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pm_tf')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pm_tf)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('age', 'sex', 'DepInd', 'pm_tf', 'pred', 'SqError', 'class')
+  
+  # Calculate the median `pred` for each `class`
+  class_order <- age.in %>%
+    group_by(class) %>%
+    summarise(median_pred = median(pred, na.rm = TRUE)) %>%
+    arrange(median_pred) %>%
+    pull(class)
+  
+  # Reorder the `class` factor based on the median `pred`
+  age.in$class <- factor(age.in$class, levels = class_order)
+  
+  # Calculate class sizes
+  class_sizes <- age.in %>%
+    group_by(class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, SqError, pm_tf), names_to = "variable", values_to = "value")
+  
+  # Create the boxplot with class sizes in the legend
+  p <- ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+    geom_boxplot() +
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Age, Sex, DepInd, tf_pm, Labeled by Class for Run", r),
+         x = "Class",
+         y = "Value") +
+    scale_fill_discrete(labels = class_labels)
+  
+  print(p)
+}
+```
+
+
+
+Actually I need to re-save stuff onto dmn response variable too, so it's wrong right now.
+
+[2,6,7,9]//aug9_pm_bi_gpols_init. 4404012 ==> reduce max mag of lr
+[3,4,10] aug9_pm_bi_gpnn_init 4403909
+
+
+Note that I need to run GPR, LASSO, Ridge for bimodal
+
+//re_aug13_bimodal_ridge. 4654683
+//re_aug13_bimodal_pm_gpr 4652713
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/age_dmn_sex_strat.feather'))
+train.test.ind <- list()
+train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_dmn_test_index.csv')$x
+train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_dmn_train_index.csv')$x
+```
+
+###Ridge
+```{r}
+#lasso
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug13_bimodal_lasso_noscale_",i,".csv"))))
+}
+(l.train <- quantile(hs.int[,5],c(0.5)))
+(l.test <-quantile(hs.int[,6],c(0.5)))
+
+#ridge
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug13_bimodal_ridge_noscale_",i,".csv"))))
+}
+(r.train <- quantile(hs.int[,5],c(0.5)))
+(r.test <-quantile(hs.int[,6],c(0.5)))
+
+#ridge
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug13_bimodal_pm_gpr_noscale_",i,".csv"))))
+}
+(gpr.train <- quantile(hs.int[,5],c(0.5)))
+(gpr.test <-quantile(hs.int[,6],c(0.5)))
+```
+
+##bi gpols
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <-250*4
+runs <- c(2,6,7,9)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_bi_gpols_init_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0.97,1.1) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "iterations", y = "Value", color = "Run number")
+
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0,1.1) +
+  theme_minimal() +
+  labs(title = "Train RMSE",x = "iterations", y = "Value", color = "Run number")
+```
+
+
+##bi gpols
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <-250*4
+runs <- c(3,4,10)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_bi_gpnn_init_bbs_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0.97,1.1) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "iterations", y = "Value", color = "Run number")
+
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0,1.1) +
+  theme_minimal() +
+  labs(title = "Train RMSE",x = "iterations", y = "Value", color = "Run number")
+```
+#18 Aug
+
+Testing sgld. 
+I am only doing sgld on gpols and present it first to see if we need it. GPNN and GPGP vcan be done later
+
+//aug9_pm_sm_gpols_12init_sgld 6246995
+//aug9_pm_gpols_12init_sgld 6347708
+
+###gpols bbs
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <-500*4
+runs <- c(1:10)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpols_12init_sgld_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0.99,1.1) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "iterations", y = "Value", color = "Run number")
+
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0.88,1.1) +
+  theme_minimal() +
+  labs(title = "Train RMSE",x = "iterations", y = "Value", color = "Run number")
+```
+
+We can just pick a sensible run to assess, e.g. run 3
+
+###gpols bbs
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <-500*4
+runs <- c(1:10)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpols_12init_sgld_loss__jobid_",i,".csv")))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+resdat <- as.data.frame(sqrt(res.mat[2,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0.99,1.1) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "iterations", y = "Value", color = "Run number")
+
+resdat <- as.data.frame(sqrt(res.mat[1,,]))
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +
+  geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  ylim(0.88,1.1) +
+  theme_minimal() +
+  labs(title = "Train RMSE",x = "iterations", y = "Value", color = "Run number")
+```
+
+
+#19 August
+
+SGLD
+###getting sgld results
+```{r}
+for(i in c(9)){
+  print(i)
+  res <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/summary_re_aug9_pm_sm_gpols_sgld_",i,".csv" ))$x
+  names(res) <-  c("inRMSE","outRMSE","inR2","outR2","in-Coverage","out-Coverage","in-PPIwidth","out-PPIwidth","inMAE","outMAE", "G1", "G2")
+  print(res)
+  print("---")
+}
+```
+There are clear distinctions between good and bad runs
+Let's look at 7,9,10
+
+Held-in
+```{r}
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(2,3,5,9)
+
+for(r in success.run){
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpols_12init_sgld_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in,n.test/4*1000)
+  colnames(dat.in) <- c('id_ind','pred','class')
+  dat.in.grouped <- dat.in %>%
+    group_by(id_ind) %>%
+    summarize(pred_class = getmode(class))
+  dat.in.grouped <-  dat.in.grouped[order(dat.in.grouped$id_ind), ]
+  dat.in <- tail(dat.in,n.test)
+  dat.in <- dat.in[order(dat.in$id_ind), ]
+  dat.in$class <- dat.in.grouped$pred_class
+
+# Merge with age and sex information
+  # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd','pm_tf')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pm_tf)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('age', 'sex', 'DepInd','pm_tf', 'pred', 'SqError', 'class')
+  
+  # Calculate class sizes
+  class_sizes <- age.in %>%
+    group_by(class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, SqError,pm_tf), names_to = "variable", values_to = "value")
+  
+  # Create the boxplot with class sizes in the legend
+  p <- ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+    geom_boxplot() +
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Age, Sex, and DepInd, tf_pm, Labeled by Class for Run", r),
+         x = "Class",
+         y = "Value") +
+    scale_fill_discrete(labels = class_labels)
+  
+  print(p)
+}
+```
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)
+
+# Function to get the mode
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c( 9)
+
+for (r in success.run) {
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpols_12init_sgld_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test / 4 * 1000)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  dat.in.grouped <- dat.in %>%
+    group_by(id_ind) %>%
+    summarize(pred_class = getmode(class))
+  dat.in.grouped <- dat.in.grouped[order(dat.in.grouped$id_ind), ]
+  dat.in <- tail(dat.in, n.test)
+  dat.in <- dat.in[order(dat.in$id_ind), ]
+  dat.in$class <- dat.in.grouped$pred_class
+
+  # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pm_tf')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pm_tf)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('age', 'sex', 'DepInd', 'pm_tf', 'pred', 'SqError', 'class')
+  
+  # Calculate the median `pred` for each `class`
+  class_order <- age.in %>%
+    group_by(class) %>%
+    summarise(median_pred = median(pred, na.rm = TRUE)) %>%
+    arrange(median_pred) %>%
+    pull(class)
+  
+  # Reorder the `class` factor based on the median `pred`
+  age.in$class <- factor(age.in$class, levels = class_order)
+  
+  # Calculate class sizes
+  class_sizes <- age.in %>%
+    group_by(class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, SqError, pm_tf), names_to = "variable", values_to = "value")
+  
+  # Create the boxplot with class sizes in the legend
+  p <- ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+    geom_boxplot() +
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Age, Sex, and DepInd, tf_pm, Labeled by Class for Run", r),
+         x = "Class",
+         y = "Value") +
+    scale_fill_discrete(labels = class_labels)
+  
+  print(p)
+}
+```
+Calculating the 2.5 and 97.5 IQR
+```{r}
+for(C in c(1,2,3)){
+  quants95 <- quantile(age.in[age.in$class==C,'pm_tf'], probs = c(0.025,0.975))
+  print(quants95[2]-quants95[1])
+}
+```
+
+###getting sgld result of No-class GP-OLS
+```{r}
+for(i in c(9)){
+  print(i)
+  res <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/summary_re_aug9_pm_gpols_sgld_",i,".csv" ))$x
+  names(res) <-  c("inRMSE","outRMSE","inR2","outR2","in-Coverage","out-Coverage","in-PPIwidth","out-PPIwidth","inMAE","outMAE")
+  print(res)
+  print("---")
+}
+```
+
+
+#22 Aug
+
+//aug22_pm_sm_gpols_12init_K. 8191439 ==> K = 2,4,5
+aug22_pm_sm_gpols_12init_K_bbs  8315986  ==> K = 2,4,5
+
+aug22_pm_sm_gpols_12init_K. 8315998 ==> K = 8,12,15
