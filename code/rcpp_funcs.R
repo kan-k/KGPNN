@@ -471,3 +471,39 @@ arma::mat updateBiasGPinter(int minibatchSize, int nMask, int numLatClass,
     }
     return gradB;
 }', depends = "RcppArmadillo")
+
+
+#Bimodal GP-OLS
+cppFunction('
+arma::cube updateDoubleWeightsGPFirst(int minibatchSize, int nMask, double ySigma, 
+                                  const arma::vec& gradLoss, const arma::vec& betaHS, 
+                                  const arma::mat& hiddenLayer, const arma::cube& res3dat,
+                                  const arma::mat& hiddenLayerdmn, const arma::cube& res3datdmn) {
+    using namespace std;
+    arma::cube grad(minibatchSize,res3dat.n_slices, nMask, arma::fill::zeros);
+    for (int j = 0; j < nMask; ++j) {
+        arma::mat test = (-1.0 / ySigma) * gradLoss % (betaHS(j) + (betaHS((j+(nMask*2))) * hiddenLayerdmn.col(j))) % arma::sign(hiddenLayer.col(j));
+        arma::mat gradMat = res3dat.row(j);
+        gradMat.each_col() %= test; // Efficient element-wise multiplication
+        grad.slice(j) = gradMat;
+    }
+    return grad;
+}', depends = "RcppArmadillo")
+
+cppFunction('
+arma::cube updateDoubleWeightsGPSecond(int minibatchSize, int nMask, double ySigma, 
+                                  const arma::vec& gradLoss, const arma::vec& betaHS, 
+                                  const arma::mat& hiddenLayer, const arma::cube& res3dat,
+                                  const arma::mat& hiddenLayerdmn, const arma::cube& res3datdmn) {
+    using namespace std;
+    arma::cube grad(minibatchSize,res3dat.n_slices, nMask, arma::fill::zeros);
+    for (int j = 0; j < nMask; ++j) {
+        arma::mat test = (-1.0 / ySigma) * gradLoss % (betaHS(j+nMask) + (betaHS((j+(nMask*2))) * hiddenLayer.col(j))) % arma::sign(hiddenLayerdmn.col(j));
+        arma::mat gradMat = res3datdmn.row(j);
+        gradMat.each_col() %= test; // Efficient element-wise multiplication
+        grad.slice(j) = gradMat;
+    }
+    return grad;
+}', depends = "RcppArmadillo")
+
+
