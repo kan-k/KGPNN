@@ -21,7 +21,7 @@ set.seed(JobId)
 
 print("Starting")
 
-filename <- "july26_pm_sm_gpols_12init"
+filename <- "aug9_pm_sm_gpols_12init"
 # prior.var <- 0.05 #was 0.05
 learning_rate <- 0.99 #for slow decay starting less than 1
 prior.var.bias <- 1

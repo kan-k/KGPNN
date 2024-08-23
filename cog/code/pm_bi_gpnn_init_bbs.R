@@ -24,8 +24,8 @@ time.taken <- Sys.time() - start.time
 print(paste0("load rcpp file completed in: ", time.taken))
 
 
-filename <- "july26_pm_bi_gpnn_init_bbs"
-success.run <- c(2,4,8,9)
+filename <- "aug9_pm_bi_gpnn_init_bbs"
+success.run <- c(1:4,8,9)
 init.num <- ifelse(JobId %in% success.run, yes = JobId, no = sample(success.run,1))
 learning_rate <- 0.99 #for slow decay starting less than 1
 epoch <- 250 #was 500
@@ -176,12 +176,12 @@ it.num <- 1
 #Initial parameters for inverse gamma
 print("alpha-beta1")
 
-alpha.init <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_july26_pm_bi_gpnn_init_minalpha__jobid_",init.num,".csv"))$x #shape
-beta.init <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_july26_pm_bi_gpnn_init_minbeta__jobid_",init.num,".csv"))$x #scale
+alpha.init <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_bi_gpnn_init_minalpha__jobid_",init.num,".csv"))$x #shape
+beta.init <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_bi_gpnn_init_minbeta__jobid_",init.num,".csv"))$x #scale
 print("alpha-beta2")
 
-alpha.init.dmn <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_july26_pm_bi_gpnn_init_minalphadmn__jobid_",init.num,".csv"))$x #shape
-beta.init.dmn <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_july26_pm_bi_gpnn_init_minbetadmn__jobid_",init.num,".csv"))$x #scale
+alpha.init.dmn <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_bi_gpnn_init_minalphadmn__jobid_",init.num,".csv"))$x #shape
+beta.init.dmn <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_bi_gpnn_init_minbetadmn__jobid_",init.num,".csv"))$x #scale
 
 #Storing inv gamma
 conj.alpha <- matrix(, nrow=n.mask,ncol=epoch*4)
@@ -197,16 +197,16 @@ conj.invgamma.dmn <-matrix(, nrow=n.mask,ncol=epoch*4)
 #Define init var
 print("prior var1")
 
-prior.var <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_july26_pm_bi_gpnn_init_minpriorvar__jobid_",init.num,".csv"))$x#Mean of IG
+prior.var <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_bi_gpnn_init_minpriorvar__jobid_",init.num,".csv"))$x#Mean of IG
 print("prior var2")
 
-prior.var.dmn <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_july26_pm_bi_gpnn_init_minpriorvardmn__jobid_",init.num,".csv"))$x#Mean of IG
+prior.var.dmn <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_bi_gpnn_init_minpriorvardmn__jobid_",init.num,".csv"))$x#Mean of IG
 
 #Fix prior var to be 0.1
 # prior.var <- 1.5
 print("sigma")
 
-y.sigma <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_july26_pm_bi_gpnn_init_minsigma__jobid_",init.num,".csv"))$x
+y.sigma <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_bi_gpnn_init_minsigma__jobid_",init.num,".csv"))$x
 y.sigma.vec <- y.sigma
 
 print("Initialisation")
@@ -215,15 +215,15 @@ print("Initialisation")
 # theta.matrix <- matrix(,nrow=n.mask, ncol= n.expan)
 ##########
 print("weights1")
-weights <- as.matrix(read_feather(paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_july26_pm_bi_gpnn_init_minweights__jobid_',init.num,'.feather')))
+weights <- as.matrix(read_feather(paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_bi_gpnn_init_minweights__jobid_',init.num,'.feather')))
 print("weights2")
-weights.dmn<-  as.matrix(read_feather(paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_july26_pm_bi_gpnn_init_minweightsdmn__jobid_',init.num,'.feather')))
+weights.dmn<-  as.matrix(read_feather(paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_bi_gpnn_init_minweightsdmn__jobid_',init.num,'.feather')))
 #Initialising bias (to 0)
 print("bias1")
-bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_july26_pm_bi_gpnn_init_minbias__jobid_",init.num,".csv"))$x
+bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_bi_gpnn_init_minbias__jobid_",init.num,".csv"))$x
 print("bias2")
 
-bias.dmn <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_july26_pm_bi_gpnn_init_minbiasdmn__jobid_",init.num,".csv"))$x
+bias.dmn <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_bi_gpnn_init_minbiasdmn__jobid_",init.num,".csv"))$x
 
 
 prior.var.bias <- 1

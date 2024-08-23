@@ -23,8 +23,8 @@ print(Sys.time())
 print('############### Test Optimised ###############')
 
 
-filename <- "july24_pm_sm_gpnn_12init_bbs" 
-success.run <- c(1,3:8,10)
+filename <- "aug9_pm_sm_gpnn_12init_bbs" 
+success.run <- c(2,3,8:10)
 init.num <- ifelse(JobId %in% success.run, yes = JobId, no = sample(success.run,1))
 prior.var <- 0.05 #was 0.05
 learning_rate <- 0.99 #for slow decay starting less than 1
@@ -213,8 +213,8 @@ time.load <-  Sys.time()
 print(Sys.time())
 
 #Initial parameters for inverse gamma
-alpha.init <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_july24_pm_sm_gpnn_12init_minalpha__jobid_",init.num,".csv"))$x #shape
-beta.init <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_july24_pm_sm_gpnn_12init_minbeta__jobid_",init.num,".csv"))$x #scale
+alpha.init <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpnn_12init_minalpha__jobid_",init.num,".csv"))$x #shape
+beta.init <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpnn_12init_minbeta__jobid_",init.num,".csv"))$x #scale
 
 
 #Storing inv gamma
@@ -224,28 +224,28 @@ conj.invgamma <-matrix(, nrow=n.mask,ncol=epoch*4)
 # conj.cv <- matrix(, nrow=n.mask,ncol=epoch*4)
 
 #Define init var
-prior.var <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_july24_pm_sm_gpnn_12init_minpriorvar__jobid_",init.num,".csv"))$x#Mean of IG
+prior.var <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpnn_12init_minpriorvar__jobid_",init.num,".csv"))$x#Mean of IG
 
 #Fix prior var to be 0.1
 # prior.var <- 1.5
-y.sigma <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_july24_pm_sm_gpnn_12init_minsigma__jobid_",init.num,".csv"))$x
+y.sigma <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpnn_12init_minsigma__jobid_",init.num,".csv"))$x
 y.sigma.vec <- y.sigma
 
 print("Initialisation")
 #1 Initialisation
 #1.1 Initialise the partial weights around normal dist as a matrix of size (nrow(bases..ie choose...) x number of neurons in 2nd layer ie#regions)
 # theta.matrix <- matrix(,nrow=n.mask, ncol= n.expan)
-weights <- as.matrix(read_feather(paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_july24_pm_sm_gpnn_12init_minweights__jobid_',init.num,'.feather')))
-co.weights<- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_july24_pm_sm_gpnn_12init_mincoweights__jobid_",init.num,".csv")))
+weights <- as.matrix(read_feather(paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpnn_12init_minweights__jobid_',init.num,'.feather')))
+co.weights<- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpnn_12init_mincoweights__jobid_",init.num,".csv")))
 
 #Initialising bias (to 0)
-bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_july24_pm_sm_gpnn_12init_minbias__jobid_",init.num,".csv"))$x
-co.bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_july24_pm_sm_gpnn_12init_mincobias__jobid_",init.num,".csv"))$x
+bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpnn_12init_minbias__jobid_",init.num,".csv"))$x
+co.bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpnn_12init_mincobias__jobid_",init.num,".csv"))$x
 
 num.lat.class<- length(co.bias)
 
 #non-imaging covar
-gp.coef <- as.matrix(read_feather(paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_july24_pm_sm_gpnn_12init_minLCgp__jobid_',init.num,'.feather')))
+gp.coef <- as.matrix(read_feather(paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpnn_12init_minLCgp__jobid_',init.num,'.feather')))
 partial.gp.centroid <- rbind(partial.gp.centroid.img,gp.coef)
 
 time.taken <- Sys.time() - time.load

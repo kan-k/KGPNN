@@ -1,5 +1,6 @@
 # R script
 
+#12 Aug, restraining lr to max of 0.9
 
 if (!require("pacman")) {install.packages("pacman");library(pacman)}
 p_load(BayesGPfit)
@@ -27,7 +28,7 @@ time.taken <- Sys.time() - start.time
 print(paste0("load rcpp file completed in: ", time.taken))
 
 
-filename <- "aug9_pm_bi_gpnn_init"
+filename <- "aug9_pm_bi_gpols_init"
 # prior.var <- 0.05 #was 0.05
 learning_rate <- 0.99 #for slow decay starting less than 1
 epoch <- 250 #was 500
@@ -152,12 +153,18 @@ train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_dmn_te
 train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_dmn_train_index.csv')$x
 n.train <- length(train.test.ind$train)
 
+n.expan <- choose(20+3,3)
 
-# source("/well/nichols/users/qcv214/bnn2/res3/first_layer_gp4.R")
-# partial.gp.centroid<-t(as.matrix(read_feather(paste0("/well/nichols/users/qcv214/KGPNN/partial_gp_centroids_fixed_100.540.feather")))) #12 x 4
-partial.gp.centroid<-t(as.matrix(read_feather(paste0("/well/nichols/users/qcv214/KGPNN/partial_gp_centroids_fixed_300.540.feather"))))
-
-l.expan <- ncol(partial.gp.centroid) #4
+###
+source("/well/nichols/users/qcv214/bnn2/res3/first_layer_gp5_50.R")
+print(paste0("load up res3 gp [DONE]"))
+print(paste0("dim res3 gp"))
+print(dim(res3.dat))
+mult.dat <- function(X) as.matrix(res3.dat %*% X)
+mult.dat.dmn <- function(X) as.matrix(res3.dat.dmn %*% X)
+mult.thea <- function(X,theta) rowSums(X*theta)
+res3.dat <- array(t(apply(partial.gp,MARGIN = c(1),mult.dat)), dim =c(n.mask,n.dat,n.expan)) #rename res3.dat as the product of data and expansion
+res3.dat.dmn <- array(t(apply(partial.gp,MARGIN = c(1),mult.dat.dmn)), dim =c(n.mask,n.dat,n.expan)) #rename res3.dat as the product of data and expansion
 
 #Length
 
@@ -209,17 +216,19 @@ print("Initialisation")
 #1 Initialisation
 #1.1 Initialise the partial weights around normal dist as a matrix of size (nrow(bases..ie choose...) x number of neurons in 2nd layer ie#regions)
 # weights <- matrix(,nrow=n.mask, ncol= n.expan)
-weights <- matrix(, ncol = p.dat, nrow = n.mask)
+
+theta.matrix <- matrix(,nrow=n.mask, ncol= n.expan)
 for(i in 1:n.mask){
-  weights[i,] <- rnorm(p.dat,0,sqrt(prior.var*y.sigma))
+  theta.matrix[i,] <- rnorm(n.expan,0,sqrt(prior.var*y.sigma)) #was 500
 }
+
 bias <- rnorm(n.mask)
 
 
 #Weight for DMN
-weights.dmn <- matrix(, ncol = p.dat, nrow = n.mask)
+theta.matrix.dmn <- matrix(,nrow=n.mask, ncol= n.expan)
 for(i in 1:n.mask){
-  weights.dmn[i,] <- rnorm(p.dat,0,sqrt(prior.var.dmn*y.sigma))
+  theta.matrix.dmn[i,] <- rnorm(n.expan,0,sqrt(prior.var.dmn*y.sigma)) #was 500
 }
 bias.dmn <- rnorm(n.mask)
 
@@ -251,34 +260,24 @@ for(e in 1:epoch){
     #3 Feed it to next layer
     
     # hidden.layer <- apply(t(t(res3.dat[mini.batch$train[[b]], ]  %*% t(weights)) + bias), 2, FUN = relu) #n x n.mask
-    hidden.layer <-computeHiddenLayer(res3.dat[mini.batch$train[[b]], ], t(weights), bias)
+    hidden.layer <- apply(t(apply(res3.dat[, mini.batch$train[[b]], ],MARGIN = 2,FUN = mult.thea,thet=theta.matrix) + bias), 2, FUN = relu) #not C++ optim, this collapes into two dimension
     
     
     # hidden.layer.dmn <- apply(t(t(res3.dat.dmn[mini.batch$train[[b]], ]  %*% t(weights.dmn)) + bias.dmn), 2, FUN = relu)
-    hidden.layer.dmn <-computeHiddenLayer(res3.dat.dmn[mini.batch$train[[b]], ], t(weights.dmn), bias.dmn)
+    hidden.layer.dmn <- apply(t(apply(res3.dat.dmn[, mini.batch$train[[b]], ],MARGIN = 2,FUN = mult.thea,thet=theta.matrix.dmn) + bias.dmn), 2, FUN = relu) #not C++ optim, this collapes into two dimension
     
     
     # Generate polynomial features (linear terms)
     # hidden.features <- as.matrix(hidden.layer %*% partial.gp.centroid) # (n x n.mask) x (n.mask x l.expan) = (n x l.expan)
-    hidden.features <- matrixMultiply(hidden.layer, partial.gp.centroid)
+    z.nb <- cbind(hidden.layer, hidden.layer.dmn, hidden.layer*hidden.layer.dmn) #This is different from LASIR in the sense that the subgroup latent directly affect the output, whereas the group themselves dont. But then that can be modified easily.
     
-    # hidden.dmn.features <- as.matrix(hidden.layer.dmn %*% partial.gp.centroid)
-    hidden.dmn.features <- matrixMultiply(hidden.layer.dmn, partial.gp.centroid)
-    z.nb <- cbind(1,hidden.features, hidden.dmn.features, hidden.dmn.features*hidden.features) #This is different from LASIR in the sense that the subgroup latent directly affect the output, whereas the group themselves dont. But then that can be modified easily.
+    fit.lm <- lm(age[mini.batch$train[[b]]] ~ z.nb)
+    l.weights <- coefficients(fit.lm)[-1]
+    l.weights[is.na(l.weights)] <- 0
+    beta_fit <- data.frame(HS = l.weights)
+    l.bias <- coefficients(fit.lm)[1]
     
-    hs_fit_SOI <- fast_normal_lm(age[mini.batch$train[[b]]],z.nb) #This also gives the bias term
-    
-    ############################################################################################ 
-    
-    beta_fit <- data.frame(HS = c(partial.gp.centroid%*%hs_fit_SOI$post_mean$betacoef[(1+1):(l.expan+1)],
-                                  partial.gp.centroid%*%hs_fit_SOI$post_mean$betacoef[(1+l.expan+1):(2*l.expan+1)],
-                                  (partial.gp.centroid^2)%*%hs_fit_SOI$post_mean$betacoef[-(1:(2*l.expan+1))]
-    ))
-    
-    l.bias <- hs_fit_SOI$post_mean$betacoef[1]
-    
-    hs_in.pred_SOI <- predict_fast_lm(hs_fit_SOI, z.nb, alpha = 0.95)$mean
-    
+    hs_in.pred_SOI <- l.bias + z.nb%*%beta_fit$HS    
     
     loss.train <- c(loss.train, mseCpp(hs_in.pred_SOI,age[mini.batch$train[[b]]]))
     rsq.train <- c(rsq.train, rsqCpp(age[mini.batch$train[[b]]],hs_in.pred_SOI))
@@ -289,30 +288,21 @@ for(e in 1:epoch){
     # loss.train.fmale <- c(loss.train.fmale, mseCpp(hs_in.pred_SOI[which(sex[mini.batch$train[[b]]] == -1)],age[mini.batch$train[[b]]][which(sex[mini.batch$train[[b]]] == -1)]))
     # rsq.train.f <- c(rsq.train.fmale, rsqCpp(age[mini.batch$train[[b]]][which(sex[mini.batch$train[[b]]] == -1)],hs_in.pred_SOI[which(sex[mini.batch$train[[b]]] == -1)]))
     
-    temp.sum.sum.sq <- apply(weights, 1, FUN = function(x) sum(x^2))
+    temp.sum.sum.sq <- apply(theta.matrix, 1, FUN = function(x) sum(x^2))
     
     #Note wrong MAP here. I have NOT incorporated intercept
     map.train <- c(map.train,n.train/2*log(y.sigma) +1/(2*y.sigma)*n.train*mse(hs_in.pred_SOI,age[mini.batch$train[[b]]]) +n.mask/2*log(y.sigma) +n.mask*p.dat/2*log(y.sigma) + 1/(2*y.sigma)*sum(1/prior.var*(temp.sum.sum.sq))  +1/2*sum(c(bias)^2) )
     
     ################################################################# TEST #################################################################
+
+    #####
+    hidden.layer.test <- apply(t(apply(res3.dat[, train.test.ind$test, ],MARGIN = 2,FUN = mult.thea,thet=theta.matrix) + bias), 2, FUN = relu) #not C++ optim, this collapes into two dimension
+    # hidden.layer.dmn <- apply(t(t(res3.dat.dmn[mini.batch$train[[b]], ]  %*% t(weights.dmn)) + bias.dmn), 2, FUN = relu)
+    hidden.layer.dmn.test <- apply(t(apply(res3.dat.dmn[, train.test.ind$test, ],MARGIN = 2,FUN = mult.thea,thet=theta.matrix.dmn) + bias.dmn), 2, FUN = relu) #not C++ optim, this collapes into two dimension
+    # hidden.features <- as.matrix(hidden.layer %*% partial.gp.centroid) # (n x n.mask) x (n.mask x l.expan) = (n x l.expan)
+    z.nb.test <- cbind(hidden.layer.test, hidden.layer.dmn.test, hidden.layer.test*hidden.layer.dmn.test) #This is different from LASIR in the sense that the subgroup latent directly affect the output, whereas the group themselves dont. But then that can be modified easily.
     
-    # hidden.layer.test <- apply(t(t(res3.dat[train.test.ind$test, ] %*% t(weights)) + bias), 2, FUN = relu)
-    hidden.layer.test <-computeHiddenLayer(res3.dat[train.test.ind$test, ], t(weights), bias)
-    
-    # hidden.layer.dmn.test <- apply(t(t(res3.dat.dmn[train.test.ind$test, ] %*% t(weights.dmn)) + bias.dmn), 2, FUN = relu)
-    hidden.layer.dmn.test <-computeHiddenLayer(res3.dat.dmn[train.test.ind$test, ], t(weights.dmn), bias.dmn)
-    
-    
-    # Generate polynomial features (linear terms)
-    # hidden.features.test <- as.matrix(hidden.layer.test %*% partial.gp.centroid) # (n x n.mask) x (n.mask x l.expan) = (n x l.expan)
-    hidden.features.test <- matrixMultiply(hidden.layer.test, partial.gp.centroid)
-    
-    # hidden.dmn.features.test <- as.matrix(hidden.layer.dmn.test %*% partial.gp.centroid)
-    hidden.dmn.features.test <- matrixMultiply(hidden.layer.dmn.test, partial.gp.centroid)
-    z.nb.test <- cbind(1,hidden.features.test, hidden.dmn.features.test, hidden.dmn.features.test*hidden.features.test) #This is different from LASIR in the sense that the subgroup latent directly affect the output, whereas the group themselves dont. But then that can be modified easily.
-    
-    hs_pred_SOI <- predict_fast_lm(hs_fit_SOI, z.nb.test, alpha = 0.95)$mean
-    
+    hs_pred_SOI <- l.bias + z.nb.test %*%beta_fit$HS
     loss.val <- c(loss.val, mseCpp(hs_pred_SOI,age[train.test.ind$test]))
     rsq.val <- c(rsq.val, rsqCpp(age[train.test.ind$test],hs_pred_SOI))
     
@@ -324,7 +314,7 @@ for(e in 1:epoch){
     # 
     #For keeping the minimum
     if((tail(loss.val,1) < min.mse) & (e >2 )){
-      min.weights <- weights
+      min.theta <- theta.matrix
       min.bias <- bias
       min.y.sigma <- y.sigma
       min.lr <- learning_rate
@@ -332,7 +322,7 @@ for(e in 1:epoch){
       min.beta <- conj.beta[,(it.num-1)]
       min.prior.var <- conj.invgamma[,(it.num-1)]
       min.mse <- tail(loss.val,1)
-      min.weights.dmn <- weights.dmn
+      min.theta.dmn <- theta.matrix.dmn
       min.bias.dmn <- bias.dmn
       min.alpha.dmn <- conj.alpha.dmn[,(it.num-1)]
       min.beta.dmn <- conj.beta.dmn[,(it.num-1)]
@@ -354,8 +344,8 @@ for(e in 1:epoch){
       grad.loss <- age[mini.batch$train[[b]]] - hs_in.pred_SOI
       
       #Update weight and weight.dmn
-      grad <- updateDoubleWeightsFirst(minibatch.size, n.mask,y.sigma, grad.loss, beta_fit$HS, hidden.layer,res3.dat[mini.batch$train[[b]], ], hidden.layer.dmn,res3.dat.dmn[mini.batch$train[[b]], ])
-      grad.dmn <- updateDoubleWeightsSecond(minibatch.size, n.mask,y.sigma, grad.loss, beta_fit$HS, hidden.layer,res3.dat[mini.batch$train[[b]], ], hidden.layer.dmn,res3.dat.dmn[mini.batch$train[[b]], ])
+      grad <- updateDoubleWeightsGPFirst(minibatch.size, n.mask,y.sigma, grad.loss, beta_fit$HS, hidden.layer,res3.dat[,mini.batch$train[[b]], ], hidden.layer.dmn,res3.dat.dmn[,mini.batch$train[[b]], ])
+      grad.dmn <- updateDoubleWeightsGPSecond(minibatch.size, n.mask,y.sigma, grad.loss, beta_fit$HS, hidden.layer,res3.dat[,mini.batch$train[[b]], ], hidden.layer.dmn,res3.dat.dmn[,mini.batch$train[[b]], ])
       
       #Sex shouldnt be in the above, it should be sigmoid. That means all of my sigmoid are wrong.
       #Take batch average
@@ -377,12 +367,12 @@ for(e in 1:epoch){
       
       ####This has to be changed
       
-      grad.sigma.m <- mean(length(train.test.ind$train)/(2*y.sigma) - length(train.test.ind$train)/(2*y.sigma^2)*c(grad.loss)^2 -1/(2*y.sigma^2)*sum(c(weights/prior.var)^2)+1/(2*y.sigma)*p.dat*n.mask
-                           -1/(2*y.sigma^2)*sum(c(weights.dmn/prior.var.dmn)^2)+1/(2*y.sigma)*p.dat*n.mask)
+      grad.sigma.m <- mean(length(train.test.ind$train)/(2*y.sigma) - length(train.test.ind$train)/(2*y.sigma^2)*c(grad.loss)^2 -1/(2*y.sigma^2)*sum(c(theta.matrix/prior.var)^2)+1/(2*y.sigma)*p.dat*n.mask
+                           -1/(2*y.sigma^2)*sum(c(theta.matrix.dmn/prior.var.dmn)^2)+1/(2*y.sigma)*p.dat*n.mask)
       ####Note here of the static equal prior.var
       #Update theta matrix
-      weights <- weights*(1-learning_rate*1/(prior.var*y.sigma)) - learning_rate*grad.m * length(train.test.ind$train)
-      weights.dmn <- weights.dmn*(1-learning_rate*1/(prior.var.dmn*y.sigma)) - learning_rate*grad.dmn.m * length(train.test.ind$train)
+      theta.matrix <- theta.matrix*(1-learning_rate*1/(prior.var*y.sigma)) - learning_rate*grad.m * length(train.test.ind$train)
+      theta.matrix.dmn <- theta.matrix.dmn*(1-learning_rate*1/(prior.var.dmn*y.sigma)) - learning_rate*grad.dmn.m * length(train.test.ind$train)
       
       #Note that updating weights at the end will be missing the last batch of last epoch
       
@@ -394,25 +384,25 @@ for(e in 1:epoch){
       y.sigma <- y.sigma - learning_rate*(grad.sigma.m)
       y.sigma.vec <- c(y.sigma.vec,y.sigma)
       
-      delta_f <- c(c(weights/(prior.var*y.sigma) + grad.m*n.train),c(bias/prior.var.bias + grad.b.m*(n.train)),c(weights.dmn/(prior.var.dmn*y.sigma) + grad.dmn.m*n.train),c(bias.dmn/prior.var.bias.dmn + grad.b.dmn.m*(n.train)))
+      delta_f <- c(c(theta.matrix/(prior.var*y.sigma) + grad.m*n.train),c(bias/prior.var.bias + grad.b.m*(n.train)),c(theta.matrix.dmn/(prior.var.dmn*y.sigma) + grad.dmn.m*n.train),c(bias.dmn/prior.var.bias.dmn + grad.b.dmn.m*(n.train)))
       
       grad_x <- beta.bb*delta_f + (1-beta.bb)*grad_x
       # x.param <- c(c(weights),c(bias))
-      x.param <- c(c(weights),c(bias),c(weights.dmn),c(bias.dmn))
+      x.param <- c(c(theta.matrix),c(bias),c(theta.matrix.dmn),c(bias.dmn))
       
       
       #Update Cv
       for(i in 1:n.mask){
-        alpha.shape <- alpha.init[i] + length(weights[i,])/2
-        beta.scale <- beta.init[i] + sum(weights[i,]^2)/(2*y.sigma)
+        alpha.shape <- alpha.init[i] + length(theta.matrix[i,])/2
+        beta.scale <- beta.init[i] + sum(theta.matrix[i,]^2)/(2*y.sigma)
         prior.var[i] <- rinvgamma(n = 1, alpha.shape, beta.scale)
         
         conj.alpha[i,it.num] <- alpha.shape
         conj.beta[i,it.num] <- beta.scale
         conj.invgamma[i,it.num] <- prior.var[i]
         ###########################
-        alpha.shape.dmn <- alpha.init.dmn[i] + length(weights.dmn[i,])/2
-        beta.scale.dmn <- beta.init.dmn[i] + sum(weights.dmn[i,]^2)/(2*y.sigma)
+        alpha.shape.dmn <- alpha.init.dmn[i] + length(theta.matrix.dmn[i,])/2
+        beta.scale.dmn <- beta.init.dmn[i] + sum(theta.matrix.dmn[i,]^2)/(2*y.sigma)
         prior.var.dmn[i] <- rinvgamma(n = 1, alpha.shape.dmn, beta.scale.dmn)
         
         conj.alpha.dmn[i,it.num] <- alpha.shape.dmn
@@ -448,6 +438,11 @@ for(e in 1:epoch){
   }
   prev_x <- x.param
   prev_grad_x <- grad_x
+  
+  if(abs(learning_rate) > 1){
+    learning_rate <- sign(learning_rate)*0.9
+  }
+  
   lr.vec <- c(lr.vec, learning_rate)
 }
 
@@ -459,15 +454,11 @@ lr.vec <- c(lr.init,lr.vec[-length(lr.vec)]) #Add first learning rate
 
 write.csv(rbind(loss.train,loss.val),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_",filename,"_loss_","_jobid_",JobId,".csv"), row.names = FALSE)
 write.csv(rbind(rsq.train,rsq.val),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_",filename,"_rsq_","_jobid_",JobId,".csv"), row.names = FALSE)
-# write.csv(rbind(loss.train.male,loss.val.male),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_",filename,"_lossM_","_jobid_",JobId,".csv"), row.names = FALSE)
-# write.csv(rbind(rsq.train.male,rsq.val.male),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_",filename,"_rsqM_","_jobid_",JobId,".csv"), row.names = FALSE)
-# write.csv(rbind(loss.train.fmale,loss.val.fmale),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_",filename,"_lossF_","_jobid_",JobId,".csv"), row.names = FALSE)
-# write.csv(rbind(rsq.train.fmale,rsq.val.fmale),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_",filename,"_rsqF_","_jobid_",JobId,".csv"), row.names = FALSE)
 
 write.csv(map.train,paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_",filename,"_map_","_jobid_",JobId,".csv"), row.names = FALSE)
-write_feather(as.data.frame(weights),paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_weights_',"_jobid_",JobId,'.feather'))
+write_feather(as.data.frame(theta.matrix),paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_theta_',"_jobid_",JobId,'.feather'))
 write.csv(bias,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_bias_',"_jobid_",JobId,".csv"), row.names = FALSE)
-write_feather(as.data.frame(weights.dmn),paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_weightsdmn_',"_jobid_",JobId,'.feather'))
+write_feather(as.data.frame(theta.matrix.dmn),paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_thetadmn_',"_jobid_",JobId,'.feather'))
 write.csv(bias.dmn,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_biasdmn_',"_jobid_",JobId,".csv"), row.names = FALSE)
 write.csv(y.sigma.vec,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_sigma_',"_jobid_",JobId,".csv"), row.names = FALSE)
 write.csv(l.bias,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_lbias_',"_jobid_",JobId,".csv"), row.names = FALSE)
@@ -488,7 +479,7 @@ colnames(temp.frame) <- 1:ncol(temp.frame)
 
 #Write Minimum 
 write.csv(min.mse,paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_",filename,"_minloss_","_jobid_",JobId,".csv"), row.names = FALSE)
-write_feather(as.data.frame(min.weights),paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minweights_',"_jobid_",JobId,'.feather'))
+write_feather(as.data.frame(min.theta),paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_mintheta_',"_jobid_",JobId,'.feather'))
 write.csv(min.bias,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minbias_',"_jobid_",JobId,".csv"), row.names = FALSE)
 write.csv(min.y.sigma,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minsigma_',"_jobid_",JobId,".csv"), row.names = FALSE)
 write.csv(min.lr,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minlr_',"_jobid_",JobId,".csv"), row.names = FALSE)
@@ -496,7 +487,7 @@ write.csv(min.alpha,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',file
 write.csv(min.beta,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minbeta_',"_jobid_",JobId,".csv"), row.names = FALSE)
 write.csv(min.prior.var,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minpriorvar_',"_jobid_",JobId,".csv"), row.names = FALSE)
 
-write_feather(as.data.frame(min.weights.dmn),paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minweightsdmn_',"_jobid_",JobId,'.feather'))
+write_feather(as.data.frame(min.theta.dmn),paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minthetadmn_',"_jobid_",JobId,'.feather'))
 write.csv(min.bias.dmn,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minbiasdmn_',"_jobid_",JobId,".csv"), row.names = FALSE)
 write.csv(min.alpha.dmn,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minalphadmn_',"_jobid_",JobId,".csv"), row.names = FALSE)
 write.csv(min.beta.dmn,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minbetadmn_',"_jobid_",JobId,".csv"), row.names = FALSE)

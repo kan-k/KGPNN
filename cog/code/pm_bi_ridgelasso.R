@@ -17,50 +17,33 @@ p_load(dplyr)
 print("stage 1")
 JobId=as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID"))
 print(JobId)
-######
-#Age
-age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
-#age_tab <- age_tab[order(age_tab$id),].     #DOES THIS MESS UP ORDER
-dat.age <- (age_tab$pm_tf)
 
-age <- as.numeric(age_tab$age)
+
+#Age
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/age_dmn_sex_strat.feather'))
+
+#age_tab <- age_tab[order(age_tab$id),].     #DOES THIS MESS UP ORDER
+dat.age <-age_tab$pm_tf
 sex <-  as.numeric(age_tab$sex)
 sex <- sapply(sex, function(x) replace(x, x==0,-1)) #Change female to -1, male to 1
 
-train.test.ind <- list()
-train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x
-train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x
-n.train <- length(train.test.ind$train)
-
-depind <- age_tab$DepInd
-quantile_thresholds <- quantile(depind[train.test.ind$train], probs = seq(0, 1, by = 0.34))
-#age.group <- ifelse(age > mean(age), yes = 1, no = -1)
-dep.group1 <- ifelse(depind <=quantile_thresholds[[2]], yes =1, no = 0)
-dep.group2 <- ifelse(depind > quantile_thresholds[[2]] & depind <=quantile_thresholds[[3]], yes =1, no = 0)
-dep.group3 <- ifelse(depind > quantile_thresholds[[3]], yes =1, no = 0)
-
-quantile_thresholds <- quantile(age[train.test.ind$train], probs = seq(0, 1, by = 0.34))
-#age.group <- ifelse(age > mean(age), yes = 1, no = -1)
-age.group1 <- ifelse(age <=quantile_thresholds[[2]], yes =1, no = 0)
-age.group2 <- ifelse(age > quantile_thresholds[[2]] & age <=quantile_thresholds[[3]], yes =1, no = 0)
-age.group3 <- ifelse(age > quantile_thresholds[[3]], yes =1, no = 0)
-#####
-co.dat <- cbind(sex,dep.group1,dep.group2,dep.group3 ,age.group1,age.group2,age.group3)
 
 
 
-#subset data
-ind.to.use <- list()
-ind.to.use$test <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x
-ind.to.use$train <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x
-
+#co.dat <- cbind(sex,dep.group1,dep.group2,dep.group3,dep.group4,dep.group5,dep.group6,dep.group7,dep.group8,dep.group9,dep.group10)
 
 #mask
-res3.mask <-oro.nifti::readNIfTI('/well/nichols/users/qcv214/bnn2/res3/res4mask.nii.gz')
+res3.mask <-oro.nifti::readNIfTI('/well/nichols/users/qcv214/bnn2/res3/res3mask.nii.gz')
 res3.mask.reg <- sort(setdiff(unique(c(res3.mask)),0))
 #data
+
 list_of_all_images<-paste0('/well/win-biobank/projects/imaging/data/data3/subjectsAll/',age_tab$id,'/T1/T1_vbm/T1_GM_to_template_GM_mod.nii.gz')
-dat_allmat <- as.matrix(fast_read_imgs_mask(list_of_all_images,'/well/nichols/users/qcv214/bnn2/res3/res4mask.nii.gz'))
+dat_allmat <- as.matrix(fast_read_imgs_mask(list_of_all_images,'/well/nichols/users/qcv214/bnn2/res3/res3mask.nii.gz'))
+
+p.dat <- ncol(dat_allmat)
+
+list_of_all_images<-paste0('/well/win-biobank/projects/imaging/data/data3/subjectsAll/',age_tab$id,'/fMRI/rfMRI_25.dr/dr_stage2.nii.gz')
+co.dat <- as.matrix(fast_read_imgs_mask(list_of_all_images,'/well/nichols/users/qcv214/bnn2/res3/res3mask.nii.gz'))
 
 
 dat_allmat <- cbind(dat_allmat, co.dat) #Combining imaging and non-imaging
@@ -106,7 +89,10 @@ rsqcal2<-function(old,new,ind.old,ind.new){
 print("stage 3")
 time.train <-  Sys.time()
 
-
+#subset data
+ind.to.use <- list()
+ind.to.use$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_dmn_test_index.csv')$x
+ind.to.use$train <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_dmn_train_index.csv')$x
 #Tested.... doing set seed(4) get_ind is the same as loading sim_wb2_index
 
 
@@ -125,13 +111,24 @@ time.taken <- Sys.time() - time.train
 cat("Training complete in: ", time.taken)
 
 write.csv( c(unlist(t(as.matrix(rsqcal2(pred_prior,pred_prior_new,ind.old = ind.to.use$train,ind.new = ind.to.use$test)))),as.numeric(sub('.*:', '', summary(coef(lassofit, s=lassofit$lambda.min)[-1,]))),sum(abs(coef(lassofit, s=lassofit$lambda.min))>1e-8)),
-           paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_ridge_noscale_",JobId,".csv"), row.names = FALSE)
+           paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug13_bimodal_ridge_noscale_",JobId,".csv"), row.names = FALSE)
 
 print("write prediction")
 
-write.csv(c(pred_prior_new),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_ridge_outpred_noscale_",JobId,".csv"), row.names = FALSE)
-write.csv(c(pred_prior),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_ridge_inpred_noscale_",JobId,".csv"), row.names = FALSE)
+write.csv(c(pred_prior_new),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug13_bimodal_ridge_outpred_noscale_",JobId,".csv"), row.names = FALSE)
+write.csv(c(pred_prior),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug13_bimodal_ridge_inpred_noscale_",JobId,".csv"), row.names = FALSE)
 
+gp.mask.hs <- res3.mask
+gp.mask.hs[gp.mask.hs!=0] <-abs(coef(lassofit, s=lassofit$lambda.min)[c(2:(p.dat+1)),])
+gp.mask.hs@datatype = 16
+gp.mask.hs@bitpix = 32
+writeNIfTI(gp.mask.hs,paste0('/well/nichols/users/qcv214/KGPNN/cog/viz/aug13_bimodal_t1_ridge_',JobId))
+
+gp.mask.hs <- res3.mask
+gp.mask.hs[gp.mask.hs!=0] <-abs(coef(lassofit, s=lassofit$lambda.min)[c((p.dat+2):(p.dat*2+1)),])
+gp.mask.hs@datatype = 16
+gp.mask.hs@bitpix = 32
+writeNIfTI(gp.mask.hs,paste0('/well/nichols/users/qcv214/KGPNN/cog/viz/aug13_bimodal_dmn_ridge_',JobId))
 
 ######LASSO
 #get beta(v)
@@ -151,9 +148,21 @@ time.taken <- Sys.time() - time.train
 cat("Training complete in: ", time.taken)
 
 write.csv( c(unlist(t(as.matrix(rsqcal2(pred_prior,pred_prior_new,ind.old = ind.to.use$train,ind.new = ind.to.use$test)))),as.numeric(sub('.*:', '', summary(coef(lassofit, s=lassofit$lambda.min)[-1,]))),sum(abs(coef(lassofit, s=lassofit$lambda.min))>1e-8)),
-           paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_lasso_noscale_",JobId,".csv"), row.names = FALSE)
+           paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug13_bimodal_lasso_noscale_",JobId,".csv"), row.names = FALSE)
 
 print("write prediction")
 
-write.csv(c(pred_prior_new),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_lasso_outpred_noscale_",JobId,".csv"), row.names = FALSE)
-write.csv(c(pred_prior),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_lasso_inpred_noscale_",JobId,".csv"), row.names = FALSE)
+write.csv(c(pred_prior_new),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug13_bimodal_lasso_outpred_noscale_",JobId,".csv"), row.names = FALSE)
+write.csv(c(pred_prior),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug13_bimodal_lasso_inpred_noscale_",JobId,".csv"), row.names = FALSE)
+
+gp.mask.hs <- res3.mask
+gp.mask.hs[gp.mask.hs!=0] <-abs(coef(lassofit, s=lassofit$lambda.min)[c(2:(p.dat+1)),])
+gp.mask.hs@datatype = 16
+gp.mask.hs@bitpix = 32
+writeNIfTI(gp.mask.hs,paste0('/well/nichols/users/qcv214/KGPNN/cog/viz/aug13_bimodal_t1_lasso_',JobId))
+
+gp.mask.hs <- res3.mask
+gp.mask.hs[gp.mask.hs!=0] <-abs(coef(lassofit, s=lassofit$lambda.min)[c((p.dat+2):(p.dat*2+1)),])
+gp.mask.hs@datatype = 16
+gp.mask.hs@bitpix = 32
+writeNIfTI(gp.mask.hs,paste0('/well/nichols/users/qcv214/KGPNN/cog/viz/aug13_bimodal_dmn_lasso_',JobId))

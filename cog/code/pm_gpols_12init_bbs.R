@@ -29,13 +29,13 @@ print(Sys.time())
 print('############### Test Optimised ###############')
 
 
-filename <- "aug7_pm_gpols_12init_bbs" 
+filename <- "aug9_pm_gpols_12init_bbs" 
 success.run <- 1:10
 init.num <- ifelse(JobId %in% success.run, yes = JobId, no = sample(success.run,1))
 prior.var <- 0.05 #was 0.05
 learning_rate <- 0.99 #for slow decay starting less than 1
 prior.var.bias <- 1
-epoch <- 750 #was 500
+epoch <- 500 #was 500
 beta.bb<- 0.5
 lr.init <- learning_rate
 
@@ -226,8 +226,8 @@ batch_size <- 500
 it.num <- 1
 
 #Initial parameters for inverse gamma
-alpha.init <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug7_pm_gpols_12init_minalpha__jobid_",init.num,".csv"))$x #shape
-beta.init <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug7_pm_gpols_12init_minbeta__jobid_",init.num,".csv"))$x #scale
+alpha.init <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpols_12init_minalpha__jobid_",init.num,".csv"))$x #shape
+beta.init <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpols_12init_minbeta__jobid_",init.num,".csv"))$x #scale
 
 
 #Storing inv gamma
@@ -237,21 +237,21 @@ conj.invgamma <-matrix(, nrow=n.mask,ncol=epoch*4)
 # conj.cv <- matrix(, nrow=n.mask,ncol=epoch*4)
 
 #Define init var
-prior.var <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug7_pm_gpols_12init_minpriorvar__jobid_",init.num,".csv"))$x#Mean of IG
+prior.var <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpols_12init_minpriorvar__jobid_",init.num,".csv"))$x#Mean of IG
 
 #Fix prior var to be 0.1
 # prior.var <- 1.5
-y.sigma <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug7_pm_gpols_12init_minsigma__jobid_",init.num,".csv"))$x
+y.sigma <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpols_12init_minsigma__jobid_",init.num,".csv"))$x
 y.sigma.vec <- y.sigma
 
 print("Initialisation")
 #1 Initialisation
 #1.1 Initialise the partial weights around normal dist as a matrix of size (nrow(bases..ie choose...) x number of neurons in 2nd layer ie#regions)
 # theta.matrix <- matrix(,nrow=n.mask, ncol= n.expan)
-theta.matrix <- as.matrix(read_feather(paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug7_pm_gpols_12init_mintheta__jobid_',init.num,'.feather')))
+theta.matrix <- as.matrix(read_feather(paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpols_12init_mintheta__jobid_',init.num,'.feather')))
 
 #Initialising bias (to 0)
-bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug7_pm_gpols_12init_minbias__jobid_",init.num,".csv"))$x
+bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpols_12init_minbias__jobid_",init.num,".csv"))$x
 
 
 time.train <-  Sys.time()

@@ -30,7 +30,7 @@ part_use<-part_list[part_list$exist_vbm==1,] #4263 participants left
 img1 <- oro.nifti::readNIfTI(paste0('/well/win-biobank/projects/imaging/data/data3/subjectsAll/',part_use[1,1],'/T1/T1_vbm/T1_GM_to_template_GM_mod.nii.gz'))
 
 #Age
-age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/age_dmn_sex_strat.feather'))
 #age_tab <- age_tab[order(age_tab$id),].     #DOES THIS MESS UP ORDER
 dat.age <- (age_tab$pm_tf)
 
@@ -39,8 +39,8 @@ sex <-  as.numeric(age_tab$sex)
 sex <- sapply(sex, function(x) replace(x, x==0,-1)) #Change female to -1, male to 1
 
 train.test.ind <- list()
-train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x
-train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x
+train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_dmn_test_index.csv')$x
+train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_dmn_train_index.csv')$x
 n.train <- length(train.test.ind$train)
 
 depind <- age_tab$DepInd
@@ -56,23 +56,17 @@ age.group1 <- ifelse(age <=quantile_thresholds[[2]], yes =1, no = 0)
 age.group2 <- ifelse(age > quantile_thresholds[[2]] & age <=quantile_thresholds[[3]], yes =1, no = 0)
 age.group3 <- ifelse(age > quantile_thresholds[[3]], yes =1, no = 0)
 #####
-co.dat <- cbind(sex,dep.group1,dep.group2,dep.group3 ,age.group1,age.group2,age.group3)
-
-
-
-#subset data
-ind.to.use <- list()
-ind.to.use$test <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x
-ind.to.use$train <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x
 
 
 #mask
-res3.mask <-oro.nifti::readNIfTI('/well/nichols/users/qcv214/bnn2/res3/res4mask.nii.gz')
+res3.mask <-oro.nifti::readNIfTI('/well/nichols/users/qcv214/bnn2/res3/res3mask.nii.gz')
 res3.mask.reg <- sort(setdiff(unique(c(res3.mask)),0))
 #data
 list_of_all_images<-paste0('/well/win-biobank/projects/imaging/data/data3/subjectsAll/',age_tab$id,'/T1/T1_vbm/T1_GM_to_template_GM_mod.nii.gz')
-dat_allmat <- as.matrix(fast_read_imgs_mask(list_of_all_images,'/well/nichols/users/qcv214/bnn2/res3/res4mask.nii.gz'))
+dat_allmat <- as.matrix(fast_read_imgs_mask(list_of_all_images,'/well/nichols/users/qcv214/bnn2/res3/res3mask.nii.gz'))
 
+list_of_all_images<-paste0('/well/win-biobank/projects/imaging/data/data3/subjectsAll/',age_tab$id,'/fMRI/rfMRI_25.dr/dr_stage2.nii.gz')
+co.dat <- as.matrix(fast_read_imgs_mask(list_of_all_images,'/well/nichols/users/qcv214/bnn2/res3/res3mask.nii.gz'))
 
 # dat_allmat <- cbind(dat_allmat, co.dat) #Combining imaging and non-imaging
 
@@ -132,7 +126,7 @@ bases.nb <- t(psi.mat.nb)*sqrt.lambda.nb
 
 print("before cbind")
 #Get design matrix
-dat_allmat <- cbind(t(bases.nb%*%t(dat_allmat)), co.dat) #Combining imaging and non-imaging
+dat_allmat <- cbind(t(bases.nb%*%t(dat_allmat)), t(bases.nb%*%t(co.dat))) #Combining imaging and non-imaging
 
 z.nb <- cbind(1,dat_allmat)
 
@@ -141,9 +135,6 @@ print("after cbind")
 
 
 #subset data
-train.test.ind <- list()
-train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x
-train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x
 n.train <- length(train.test.ind$train)
 n.test <- length(train.test.ind$test)
 
@@ -169,12 +160,12 @@ pred_prior_new<-predict_fast_lm(lassofit, test_Z)#$mean
 ##########################################################################################################################################################
 
 write.csv(c(unlist(t(as.matrix(rsqcal2(pred_prior$mean,pred_prior_new$mean,ind.old = train.test.ind$train,ind.new = train.test.ind$test)))),as.numeric(sub('.*:', '', summary(lassofit$post_mean$betacoef[-1,]))),sum(abs(lassofit$post_mean$betacoef[-1,])>1e-5)),
-          paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpr_noscale_",JobId,".csv"), row.names = FALSE)
-write.csv(c(pred_prior_new$mean),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpr_outpred_noscale_",JobId,".csv"), row.names = FALSE)
-write.csv(c(pred_prior$mean),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpr_inpred_noscale_",JobId,".csv"), row.names = FALSE)
+          paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug13_bimodal_pm_gpr_noscale_",JobId,".csv"), row.names = FALSE)
+write.csv(c(pred_prior_new$mean),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug13_bimodal_pm_gpr_outpred_noscale_",JobId,".csv"), row.names = FALSE)
+write.csv(c(pred_prior$mean),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug13_bimodal_pm_gpr_inpred_noscale_",JobId,".csv"), row.names = FALSE)
 ####Result to use
-write.csv(rbind(c(train.test.ind$train),c(train.test.ind$test)),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpr_index_",JobId,".csv"), row.names = FALSE)
-write_feather(as.data.frame(lassofit$post_mean$betacoef),paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpr_coef_',JobId,'.feather'))
+write.csv(rbind(c(train.test.ind$train),c(train.test.ind$test)),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug13_bimodal_pm_gpr_index_",JobId,".csv"), row.names = FALSE)
+write_feather(as.data.frame(lassofit$post_mean$betacoef),paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug13_bimodal_pm_gpr_coef_',JobId,'.feather'))
 
 ##Plotting 
 print("bases.nb")
@@ -188,7 +179,7 @@ gp.mask.nm <- res3.mask
 gp.mask.nm[gp.mask.nm!=0] <-beta_fit$NM
 gp.mask.nm@datatype = 16
 gp.mask.nm@bitpix = 32
-writeNIfTI(gp.mask.nm,paste0('/well/nichols/users/qcv214/KGPNN/cog/viz/re_aug9_pm_gpr_',poly_degree,a_concentration,b_smoothness,JobId))
+writeNIfTI(gp.mask.nm,paste0('/well/nichols/users/qcv214/KGPNN/cog/viz/re_aug13_bimodal_pm_gpr_',poly_degree,a_concentration,b_smoothness,JobId))
 
 
 
@@ -252,6 +243,6 @@ print(c(n.train,n.test,n.train,n.test))
 cover.mat <- t(matrix(c(sum(stat.in.ig.true.covermod),sum(stat.out.ig.true.covermod),sum(stat.in.ig.true.covermod2),sum(stat.out.ig.true.covermod2))))/c(n.train,n.test,n.train,n.test)*100
 colnames(cover.mat) <- c("train","test","npvtrain","npvtest")
 print('Dine')
-write.csv(cover.mat,paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpr_coverage_",JobId,".csv"), row.names = FALSE)
+write.csv(cover.mat,paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug13_bimodal_pm_gpr_coverage_",JobId,".csv"), row.names = FALSE)
 print("all done")
 
