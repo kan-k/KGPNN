@@ -220,13 +220,12 @@ meanstats.re<- function(filename, runs, mala_if){
 
 # success.run <- c(1:10)
 # for(run in success.run){
-#   stat.eb <-meanstats.re("aug9_pm_sm_gpols_12init_sgld", run, mala_if=FALSE)
-#   write.csv(stat.eb,paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/summary_re_aug9_pm_sm_gpols_sgld_",run,".csv"))
+#   stat.eb <-meanstats.re("aug9_pm_gpols_12init_sgld", run, mala_if=FALSE)
+#   write.csv(stat.eb,paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/summary_re_aug9_pm_gpols_sgld_",run,".csv"))
 # }
 
 success.run <- c(1:10)
 for(run in success.run){
-  stat.eb <-meanstats.re("aug9_pm_gpols_12init_sgld", run, mala_if=FALSE)
-  write.csv(stat.eb,paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/summary_re_aug9_pm_gpols_sgld_",run,".csv"))
+  stat.eb <-meanstats.re("aug22_pm_sm_gpols_12init_sgld_K2", run, mala_if=FALSE)
+  write.csv(stat.eb,paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/summary_re_aug22_pm_gpols_sgld_K2_",run,".csv"))
 }
-

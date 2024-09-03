@@ -3071,6 +3071,420 @@ for(i in c(9)){
 #22 Aug
 
 //aug22_pm_sm_gpols_12init_K. 8191439 ==> K = 2,4,5
-aug22_pm_sm_gpols_12init_K_bbs  8315986  ==> K = 2,4,5
+//aug22_pm_sm_gpols_12init_K_bbs  8315986  ==> K = 2,4,5
 
-aug22_pm_sm_gpols_12init_K. 8315998 ==> K = 8,12,15
+//aug22_pm_sm_gpols_12init_K. 8315998 ==> K = 8,12,15
+//aug22_pm_sm_gpols_12init_K_bbs 8317449==> K = 8,12,15
+
+###gpols bbs
+#### varying K
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2, 4, 5)
+num.it <- 500 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.88, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+
+We can already see here that as K increases, training RMSE goes down whereas test RMSE go up.
+
+Let's look at the class of K = 2
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)  # Ensure this package is installed for reading feather files
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(1:10)
+
+for (r in success.run) {
+  # Load and process data
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K2_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  
+  # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pm_tf')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pm_tf)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('age', 'sex', 'DepInd', 'pm_tf', 'pred', 'SqError', 'class')
+  
+  # Calculate the median `pred` for each `class`
+  class_order <- age.in %>%
+    group_by(class) %>%
+    summarise(median_pred = median(pred, na.rm = TRUE)) %>%
+    arrange(median_pred) %>%
+    pull(class)
+  
+  # Reorder the `class` factor based on the median `pred`
+  age.in$class <- factor(age.in$class, levels = class_order)
+  
+  # Calculate class sizes
+  class_sizes <- age.in %>%
+    group_by(class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, SqError, pm_tf), names_to = "variable", values_to = "value")
+  
+  # Create the boxplot with class sizes in the legend
+  p <- ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+    geom_boxplot() +
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Age, Sex, DepInd, tf_pm, Labeled by Class for Run", r),
+         x = "Class",
+         y = "Value") +
+    scale_fill_discrete(labels = class_labels)
+  
+  print(p)
+}
+```
+
+The split are pretty consistent. Not 100% overlap between runs but I think very close enough. All class dists are very similar,
+
+I think the rule is to increase K until class dist get unstable.
+
+#26 August
+###gpols bbs
+#### varying K = 8,12,15
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2, 4, 5,8,12,15)
+num.it <- 500 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.88, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+For 8,12,15, the results are basically indisnguishable, they are not bad tho but worse than K = 2
+Let's look at the class of K = 8
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)  # Ensure this package is installed for reading feather files
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(1:10)
+
+for (r in success.run) {
+  # Load and process data
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K15_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  
+  # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pm_tf')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pm_tf)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('age', 'sex', 'DepInd', 'pm_tf', 'pred', 'SqError', 'class')
+  
+  # Calculate the median `pred` for each `class`
+  class_order <- age.in %>%
+    group_by(class) %>%
+    summarise(median_pred = median(pred, na.rm = TRUE)) %>%
+    arrange(median_pred) %>%
+    pull(class)
+  
+  # Reorder the `class` factor based on the median `pred`
+  age.in$class <- factor(age.in$class, levels = class_order)
+  
+  # Calculate class sizes
+  class_sizes <- age.in %>%
+    group_by(class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, SqError, pm_tf), names_to = "variable", values_to = "value")
+  
+  # Create the boxplot with class sizes in the legend
+  p <- ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+    geom_boxplot() +
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Age, Sex, DepInd, tf_pm, Labeled by Class for Run", r),
+         x = "Class",
+         y = "Value") +
+    scale_fill_discrete(labels = class_labels)
+  
+  print(p)
+}
+```
+So looking at K = 8 and K = 15, the max number of classes are 6. It no longer exhaust all number of classes.
+
+
+Runnning
+//aug22_pm_sm_gpols_12init_sgld 9686098
+
+GLD
+###getting sgld results
+```{r}
+for(i in c(1:10)){
+  print(i)
+  res <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/summary_re_aug22_pm_gpols_sgld_K2_",i,".csv" ))$x
+  names(res) <-  c("inRMSE","outRMSE","inR2","outR2","in-Coverage","out-Coverage","in-PPIwidth","out-PPIwidth","inMAE","outMAE", "G1", "G2")
+  print(res)
+  print("---")
+}
+```
+
+Run 4 has terrible held-out
+All runs seem pretty consistent
+
+Held-in
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)
+
+# Function to get the mode
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(1:10)
+
+for (r in success.run) {
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_sgld_K2_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test / 4 * 1000)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  dat.in.grouped <- dat.in %>%
+    group_by(id_ind) %>%
+    summarize(pred_class = getmode(class))
+  dat.in.grouped <- dat.in.grouped[order(dat.in.grouped$id_ind), ]
+  dat.in <- tail(dat.in, n.test)
+  dat.in <- dat.in[order(dat.in$id_ind), ]
+  dat.in$class <- dat.in.grouped$pred_class
+
+  # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pm_tf')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pm_tf)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('age', 'sex', 'DepInd', 'pm_tf', 'pred', 'SqError', 'class')
+  
+  # Calculate the median `pred` for each `class`
+  class_order <- age.in %>%
+    group_by(class) %>%
+    summarise(median_pred = median(pred, na.rm = TRUE)) %>%
+    arrange(median_pred) %>%
+    pull(class)
+  
+  # Reorder the `class` factor based on the median `pred`
+  age.in$class <- factor(age.in$class, levels = class_order)
+  
+  # Calculate class sizes
+  class_sizes <- age.in %>%
+    group_by(class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, SqError, pm_tf), names_to = "variable", values_to = "value")
+  
+  # Create the boxplot with class sizes in the legend
+  p <- ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+    geom_boxplot() +
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Age, Sex, and DepInd, tf_pm, Labeled by Class for Run", r),
+         x = "Class",
+         y = "Value") +
+    scale_fill_discrete(labels = class_labels)
+  
+  print(p)
+}
+```
+Run 2 is a good example, maybe 10 as well
+1 tries to split using depind and gender
+run 4 is funniest on held0out but is most interpretable (same interpret as bbs)
+
+held-out
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)
+
+# Function to get the mode
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x)
+success.run <- c(1:10)
+
+for (r in success.run) {
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_sgld_K2_outpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test / 4 * 1000)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  dat.in.grouped <- dat.in %>%
+    group_by(id_ind) %>%
+    summarize(pred_class = getmode(class))
+  dat.in.grouped <- dat.in.grouped[order(dat.in.grouped$id_ind), ]
+  dat.in <- tail(dat.in, n.test)
+  dat.in <- dat.in[order(dat.in$id_ind), ]
+  dat.in$class <- dat.in.grouped$pred_class
+
+  # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pm_tf')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pm_tf)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('age', 'sex', 'DepInd', 'pm_tf', 'pred', 'SqError', 'class')
+  
+  # Calculate the median `pred` for each `class`
+  class_order <- age.in %>%
+    group_by(class) %>%
+    summarise(median_pred = median(pred, na.rm = TRUE)) %>%
+    arrange(median_pred) %>%
+    pull(class)
+  
+  # Reorder the `class` factor based on the median `pred`
+  age.in$class <- factor(age.in$class, levels = class_order)
+  
+  # Calculate class sizes
+  class_sizes <- age.in %>%
+    group_by(class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, SqError, pm_tf), names_to = "variable", values_to = "value")
+  
+  # Create the boxplot with class sizes in the legend
+  p <- ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+    geom_boxplot() +
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Age, Sex, and DepInd, tf_pm, Labeled by Class for Run", r),
+         x = "Class",
+         y = "Value") +
+    scale_fill_discrete(labels = class_labels)
+  
+  print(p)
+}
+```
