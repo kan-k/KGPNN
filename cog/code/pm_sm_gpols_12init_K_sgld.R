@@ -1,12 +1,5 @@
 # R script
 
-#May 6: Capped BBS.
-#May 19, saving the last 200 epochs of predictions (and classes)
-
-#28 May: change the res4 GP from R^2 to R and `____sm_depind_gpols_bbig_init_bbs` to `_____sm_depind_gpols_once_init_bbs`
-
-#june 13, change number of subclasses from 4 to 10 , and param search from 1000 to 500
-
 
 if (!require("pacman")) {install.packages("pacman");library(pacman)}
 p_load(BayesGPfit)
@@ -29,13 +22,20 @@ print(Sys.time())
 print('############### Test Optimised ###############')
 
 
-filename <- "aug22_pm_sm_gpols_12init_bbs" 
+filename <- "aug22_pm_sm_gpols_12init_sgld" 
 success.run <- 1:10
 init.num <- ifelse(JobId %in% success.run, yes = JobId, no = sample(success.run,1))
 prior.var <- 0.05 #was 0.05
-learning_rate <- 0.99 #for slow decay starting less than 1
+
+# start.b <- 1 #Originally 1e9
+# start.a <- 1e-3
+# start.gamma <- 1
+# learning_rate <- start.a*(start.b+1)^(-start.gamma) #for slow decay starting less than 1 #
+learning_rate <- 1e-6
+
 prior.var.bias <- 1
 epoch <- 500 #was 500
+record.epoch <- epoch
 beta.bb<- 0.5
 lr.init <- learning_rate
 
@@ -116,7 +116,6 @@ mse <- function(pred, true){mean((pred-true)^2)}
 phi <- function(k){(k+1)}
 
 
-
 print("Loading data")
 
 #Age
@@ -176,7 +175,7 @@ mult.thea <- function(X,theta) rowSums(X*theta)
 res3.dat <- array(t(apply(partial.gp,MARGIN = c(1),mult.dat)), dim =c(n.mask,n.dat,n.expan)) #rename res3.dat as the product of data and expansion
 
 ################################################################################################################################################
-for(num.lat.class.select in c(8,12,15)){
+for(num.lat.class.select in c(2)){
   
   prior.var <- 0.05 #was 0.05
   learning_rate <- 0.99 #for slow decay starting less than 1
@@ -215,54 +214,56 @@ for(num.lat.class.select in c(8,12,15)){
   pre.lr.vec <- vector(mode = "numeric")
   prod.lr.vec <-  vector(mode = "numeric")
   ck.old <- 1
-
-
-time.taken <- Sys.time() - start.time
-cat("Loading data complete in: ", time.taken)
-print(Sys.time())
-
-
-print("Getting mini batch")
-#Get minibatch index 
-batch_size <- 500
-
-
-#NN parameters
-it.num <- 1
-
-#Initial parameters for inverse gamma
-alpha.init <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_minalpha__jobid_",init.num,".csv"))$x #shape
-beta.init <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_minbeta__jobid_",init.num,".csv"))$x #scale
-
-
-#Storing inv gamma
-conj.alpha <- matrix(, nrow=n.mask,ncol=epoch*4)
-conj.beta <- matrix(, nrow=n.mask,ncol=epoch*4)
-conj.invgamma <-matrix(, nrow=n.mask,ncol=epoch*4)
-# conj.cv <- matrix(, nrow=n.mask,ncol=epoch*4)
-
-#Define init var
-prior.var <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_minpriorvar__jobid_",init.num,".csv"))$x#Mean of IG
-
-#Fix prior var to be 0.1
-# prior.var <- 1.5
-y.sigma <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_minsigma__jobid_",init.num,".csv"))$x
-y.sigma.vec <- y.sigma
-
-print("Initialisation")
-#1 Initialisation
-#1.1 Initialise the partial weights around normal dist as a matrix of size (nrow(bases..ie choose...) x number of neurons in 2nd layer ie#regions)
-# theta.matrix <- matrix(,nrow=n.mask, ncol= n.expan)
-theta.matrix <- as.matrix(read_feather(paste0( "/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_mintheta__jobid_",init.num,'.feather')))
-co.weights<- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_mincoweights__jobid_",init.num,".csv")))
-
-#Initialising bias (to 0)
-bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_minbias__jobid_",init.num,".csv"))$x
-co.bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_mincobias__jobid_",init.num,".csv"))$x
-
-num.lat.class<- length(co.bias)
-
-
+  
+  
+  time.taken <- Sys.time() - start.time
+  cat("Loading data complete in: ", time.taken)
+  print(Sys.time())
+  
+  
+  print("Getting mini batch")
+  #Get minibatch index 
+  batch_size <- 500
+  
+  
+  #NN parameters
+  it.num <- 1
+  
+  #Initial parameters for inverse gamma
+  alpha.init <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_minalpha__jobid_",init.num,".csv"))$x #shape
+  beta.init <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_minbeta__jobid_",init.num,".csv"))$x #scale
+  
+  
+  #Storing inv gamma
+  conj.alpha <- matrix(, nrow=n.mask,ncol=epoch*4)
+  conj.beta <- matrix(, nrow=n.mask,ncol=epoch*4)
+  conj.invgamma <-matrix(, nrow=n.mask,ncol=epoch*4)
+  # conj.cv <- matrix(, nrow=n.mask,ncol=epoch*4)
+  
+  #Define init var
+  prior.var <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_minpriorvar__jobid_",init.num,".csv"))$x#Mean of IG
+  
+  #Fix prior var to be 0.1
+  # prior.var <- 1.5
+  y.sigma <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_minsigma__jobid_",init.num,".csv"))$x
+  y.sigma.vec <- y.sigma
+  
+  print("Initialisation")
+  #1 Initialisation
+  #1.1 Initialise the partial weights around normal dist as a matrix of size (nrow(bases..ie choose...) x number of neurons in 2nd layer ie#regions)
+  # theta.matrix <- matrix(,nrow=n.mask, ncol= n.expan)
+  theta.matrix <- as.matrix(read_feather(paste0( "/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_mintheta__jobid_",init.num,'.feather')))
+  co.weights<- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_mincoweights__jobid_",init.num,".csv")))
+  
+  #Initialising bias (to 0)
+  bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_minbias__jobid_",init.num,".csv"))$x
+  co.bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_mincobias__jobid_",init.num,".csv"))$x
+  
+  num.lat.class<- length(co.bias)
+  
+  gaus.sd <- 0
+  
+  
 time.train <-  Sys.time()
 
 #Start epoch
@@ -323,12 +324,7 @@ for(e in 1:epoch){
     #Note wrong MAP here. I have NOT incorporated intercept
     map.train <- c(map.train,n.train/2*log(y.sigma) +1/(2*y.sigma)*n.train*mseCpp(hs_in.pred_SOI,lognum[mini.batch$train[[b]]]) +n.mask/2*log(y.sigma) +n.mask*n.expan/2*log(y.sigma) + 1/(2*y.sigma)*sum(1/prior.var*(temp.sum.sum.sq))  +1/2*sum(c(bias)^2) )
     
-    #Validation
-    #Layers
-    # print("training passed")
     
-    # print(dim(theta.matrix))
-    # print(dim(res3.dat[, train.test.ind$test, ]))
     hidden.layer.test <- apply(t(apply(res3.dat[, train.test.ind$test, ],MARGIN = 2,FUN = mult.thea,thet=theta.matrix) + bias), 2, FUN = relu)
     poly_features.test <- as.matrix(hidden.layer.test)
     
@@ -356,7 +352,7 @@ for(e in 1:epoch){
     rsq.val.fmale <- c(rsq.val.fmale, rsqCpp(lognum[train.test.ind$test][which(sex[train.test.ind$test] == -1)],hs_pred_SOI[which(sex[train.test.ind$test] == -1)]))
     
     ##Keeping the last 5 epochs predictions
-    if(e >= (epoch-200)){ #let's save the last 200 epochs.
+    if(e >= (epoch-record.epoch)){ #let's save the last 200 epochs.
       pred.train.ind <- c(pred.train.ind,mini.batch$train[[b]]) 
       pred.train.val <- c(pred.train.val,hs_in.pred_SOI)
       pred.test.ind <- c(pred.test.ind,train.test.ind$test) 
@@ -386,24 +382,22 @@ for(e in 1:epoch){
       co.grad.m<- t(grad.sum)%*%co.dat[mini.batch$train[[b]], ]/nrow(co.dat[mini.batch$train[[b]], ]) #n.lat class * num attr
       co.grad.b.m <- c(colMeans(grad.sum))
       
-      co.weights <- co.weights*(1-learning_rate) - learning_rate*co.grad.m 
-      co.bias <- co.bias*(1-learning_rate) - learning_rate*co.grad.b.m
+      co.weights <- co.weights*(1-learning_rate) - learning_rate*co.grad.m - matrix(rnorm(ncol(co.dat)*num.lat.class,0,gaus.sd), ncol = ncol(co.dat), nrow = num.lat.class)
+      co.bias <- co.bias*(1-learning_rate) - learning_rate*co.grad.b.m - rnorm(num.lat.class,0,gaus.sd)
       
       grad.sigma.m <- mean(length(train.test.ind$train)/(2*y.sigma) - length(train.test.ind$train)/(2*y.sigma^2)*c(grad.loss)^2-1/(2*y.sigma^2)*sum(c(theta.matrix/prior.var)^2)+1/(2*y.sigma)*n.expan*n.mask)
       
       ####Note here of the static equal prior.var
       #Update theta matrix
-      theta.matrix <- theta.matrix*(1-learning_rate*1/(prior.var*y.sigma)) - learning_rate*grad.m * length(train.test.ind$train)
+      theta.matrix <- theta.matrix*(1-learning_rate*1/(prior.var*y.sigma)) - learning_rate*grad.m * length(train.test.ind$train) - matrix(rnorm(n.mask*n.expan,0,gaus.sd), ncol = n.expan, nrow = n.mask)
       #Update bias
-      bias <- bias*(1-learning_rate*1/(prior.var.bias)) - learning_rate*c(grad.b.m) * length(train.test.ind$train)
+      bias <- bias*(1-learning_rate*1/(prior.var.bias)) - learning_rate*c(grad.b.m) * length(train.test.ind$train) - rnorm(n.mask,0,gaus.sd)
       
       # Update sigma
-      y.sigma <- y.sigma - learning_rate*(grad.sigma.m)
+      y.sigma <- y.sigma - learning_rate*(grad.sigma.m) - rnorm(1,0,gaus.sd)
       y.sigma.vec <- c(y.sigma.vec,y.sigma)
       
-      delta_f <- c(c(theta.matrix/(prior.var*y.sigma) + grad.m*n.train),c(bias/prior.var.bias + grad.b.m*(n.train)),c(co.weights+co.grad.m*n.train),c(co.bias + co.grad.b.m*n.train))
-      grad_x <- beta.bb*delta_f + (1-beta.bb)*grad_x
-      x.param <- c(c(theta.matrix),c(bias),c(co.weights),c(co.bias))
+      
       #Update Cv
       for(i in 1:n.mask){
         alpha.shape <- alpha.init[i] + length(theta.matrix[i,])/2
@@ -418,6 +412,10 @@ for(e in 1:epoch){
     }
     
     it.num <- it.num +1
+    
+    # learning_rate <- start.a*(start.b+it.num)^(-start.gamma)
+    learning_rate <- learning_rate/it.num
+    gaus.sd <- sqrt(2*learning_rate)
     
     print(paste0("training loss: ",mseCpp(hs_in.pred_SOI,lognum[mini.batch$train[[b]]])))
     print(paste0("validation loss: ",mseCpp(hs_pred_SOI,lognum[train.test.ind$test])))
@@ -478,37 +476,6 @@ for(e in 1:epoch){
   
   #BB
   #1 Feb, change indexing (3,2) to 2,1)... it's actually wrong. I am not saving the 1st lr, so 1st-3rd lr are literally the same.
-  if(e >=2){
-    diff_x = x.param - prev_x
-    diff_grad_x = grad_x - prev_grad_x
-    
-    ########
-    if (abs(sum(diff_x*diff_grad_x)) == 0){
-      pre.learning_rate <- 0.025 #0.25
-    } else { 
-      pre.learning_rate <- 1/num.batch*sum(diff_x*diff_x)/abs(sum(diff_x*diff_grad_x))
-    }
-    pre.learning_rate <- sign(pre.learning_rate)*min(abs(pre.learning_rate),0.1) #was 0.8
-    ########
-    
-    # pre.learning_rate <- 1/num.batch*sum(diff_x*diff_x)/abs(sum(diff_x*diff_grad_x)) 
-    pre.lr.vec <- c(pre.lr.vec, pre.learning_rate)
-    
-    ck.new <- ck.old^(1/(e-1))^(e-2)*(pre.learning_rate*phi(e))^(1/(e-1))
-    
-    # prod.lr.vec<- c(prod.lr.vec,prod(pre.lr.vec*phi(2:e))^(1/(e-1)))
-    
-    # learning_rate <- prod(pre.lr.vec*phi(2:e))^(1/(e-1))/phi(e)
-    learning_rate <- ck.new/phi(e)
-    lr.vec <- c(lr.vec, learning_rate)
-    print(paste0("at epoch ",e," learning rate is ",learning_rate, ' (pre) ', pre.learning_rate))
-    # print(paste0("at epoch ",e,"product of pre.lr.vec is ", prod(pre.lr.vec),", product of phi is ",prod(phi(2:e)), " phi e is ", phi(e)))
-    # print(paste0("at epoch ",e,", ck.new is ", ck.new))
-    
-    ck.old <- ck.new
-  }
-  prev_x <- x.param
-  prev_grad_x <- grad_x
   
 }
 
@@ -517,6 +484,8 @@ lr.vec <- c(lr.init,lr.init,lr.vec[-length(lr.vec)]) #Add first two learning rat
 
 time.taken <- Sys.time() - time.train
 cat("Training complete in: ", time.taken)
+
+
 
 write.csv(rbind(loss.train,loss.val),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_",filename,'_K',num.lat.class.select,"_loss_","_jobid_",JobId,".csv"), row.names = FALSE)
 write.csv(rbind(rsq.train,rsq.val),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_",filename,'_K',num.lat.class.select,"_rsq_","_jobid_",JobId,".csv"), row.names = FALSE)
