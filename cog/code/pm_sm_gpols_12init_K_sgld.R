@@ -22,20 +22,20 @@ print(Sys.time())
 print('############### Test Optimised ###############')
 
 
-filename <- "aug22_pm_sm_gpols_12init_sgld" 
+filename <- "aug22_pm_sm_gpols_12init_sgld_lr" 
 success.run <- 1:10
 init.num <- ifelse(JobId %in% success.run, yes = JobId, no = sample(success.run,1))
 prior.var <- 0.05 #was 0.05
 
 # start.b <- 1 #Originally 1e9
-# start.a <- 1e-3
-# start.gamma <- 1
+# start.a <- 1e-6
+# start.gamma <- 3
 # learning_rate <- start.a*(start.b+1)^(-start.gamma) #for slow decay starting less than 1 #
 learning_rate <- 1e-6
 
 prior.var.bias <- 1
-epoch <- 500 #was 500
-record.epoch <- epoch
+epoch <- 750 #was 500
+record.epoch <- 500 #epoch 
 beta.bb<- 0.5
 lr.init <- learning_rate
 
@@ -178,7 +178,8 @@ res3.dat <- array(t(apply(partial.gp,MARGIN = c(1),mult.dat)), dim =c(n.mask,n.d
 for(num.lat.class.select in c(2)){
   
   prior.var <- 0.05 #was 0.05
-  learning_rate <- 0.99 #for slow decay starting less than 1
+  # learning_rate <- 0.99 #for slow decay starting less than 1
+  learning_rate <- 1e-6
   
   #Losses
   loss.train <- vector(mode = "numeric")
