@@ -2805,7 +2805,7 @@ I am only doing sgld on gpols and present it first to see if we need it. GPNN an
 //aug9_pm_sm_gpols_12init_sgld 6246995
 //aug9_pm_gpols_12init_sgld 6347708
 
-###gpols bbs
+###gpols sgld
 ```{r}
 library(ggplot2)
 library(tidyr)
@@ -3704,8 +3704,8 @@ if (any(zero_variance_subjects)) {
     chain[, !zero_variance_subjects]
   })
   mcmc.chain <- mcmc.list(mcmc.chain)  # Rebuild the mcmc.list
-}
 
+}
 # Perform Gelman-Rubin diagnostic
 r.hat <- tryCatch({
   gelman.diag(mcmc.chain)
@@ -4014,6 +4014,2252 @@ if (!is.null(r.hat)) {
   message("Could not calculate Gelman-Rubin diagnostic.")
 }
 ```
+
+#10 sep
+
+traceplot of a few subjects
+```{r}
+library(coda)
+
+# Subset the subjects to a smaller number to reduce dimensionality
+ind <- 1:400  # Reduced number of subjects for diagnostic purposes
+
+# Function to read, process, and create MCMC objects
+process_mcmc_object <- function(job_id, ind) {
+  theta.matrix <- as.matrix(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_sgld_lr_K2_inpred__jobid_', job_id, '.feather')))
+  splt <- split(theta.matrix[2,], theta.matrix[1,])  # Group 2nd row based on 1st row into a list
+  rs <- sapply(splt, c)  # Create time x subject matrix
+  rs <- rs[, ind]  # Select subjects based on index
+  mcmc_object <- as.mcmc(rs)
+  return(mcmc_object)
+}
+
+# Process the MCMC objects for different runs
+mcmc_object1 <- process_mcmc_object(2, ind)
+mcmc_object2 <- process_mcmc_object(10, ind)
+
+# Pick 10 subjects (columns) from the two chains
+num_subjects <- 10
+subject_indices <- sample(1:ncol(mcmc_object1), num_subjects)  # Randomly sample 10 subjects
+
+# Create an mcmc.list object with the selected subjects
+mcmc.chain <- mcmc.list(
+  mcmc_object1[, subject_indices], 
+  mcmc_object2[, subject_indices]
+)
+
+# Plot the traceplots for the selected subjects using the coda package
+plot(mcmc.chain)
+```
+
+544, 92, 680, 526, 916, 947, 253, 248, 219, 474
+
+##low lr sgld
+###getting sgld results
+```{r}
+for(i in c(1:10)){
+  print(i)
+  res <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/summary_re_aug22_pm_gpols_sgld_lr_K2_",i,".csv" ))$x
+  names(res) <-  c("inRMSE","outRMSE","inR2","outR2","in-Coverage","out-Coverage","in-PPIwidth","out-PPIwidth","inMAE","outMAE", "G1", "G2")
+  print(res)
+  print("---")
+}
+```
+For run 1:8,10 since 9 only has 1 class
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)
+
+# Function to get the mode
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(1:3,5,6,10)
+
+for (r in success.run) {
+  print(paste0("======== done ======", r))
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_sgld_lr_K2_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test / 4 * 1000)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  dat.in.grouped <- dat.in %>%
+    group_by(id_ind) %>%
+    summarize(pred_class = getmode(class))
+  dat.in.grouped <- dat.in.grouped[order(dat.in.grouped$id_ind), ]
+  dat.in <- tail(dat.in, n.test)
+  dat.in <- dat.in[order(dat.in$id_ind), ]
+  dat.in$class <- dat.in.grouped$pred_class
+
+  # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pm_tf')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pm_tf)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('age', 'sex', 'DepInd', 'pm_tf', 'pred', 'SqError', 'class')
+  
+  # Calculate the median `pred` for each `class`
+  class_order <- age.in %>%
+    group_by(class) %>%
+    summarise(median_pred = median(pred, na.rm = TRUE)) %>%
+    arrange(median_pred) %>%
+    pull(class)
+  
+  # Reorder the `class` factor based on the median `pred`
+  age.in$class <- factor(age.in$class, levels = class_order)
+  
+  # Calculate class sizes
+  class_sizes <- age.in %>%
+    group_by(class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, SqError, pm_tf), names_to = "variable", values_to = "value")
+  
+  for(C in c(1,2)){
+  quants95 <- quantile(age.in[age.in$class==C,'pm_tf'], probs = c(0.025,0.975))
+  print(quants95[2]-quants95[1])
+  }
+  
+}
+```
+
+Held-out
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)
+
+# Function to get the mode
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(1:3,5,6,10)
+
+for (r in success.run) {
+  print(paste0("======== done ======", r))
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_sgld_K2_outpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test / 4 * 1000)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  dat.in.grouped <- dat.in %>%
+    group_by(id_ind) %>%
+    summarize(pred_class = getmode(class))
+  dat.in.grouped <- dat.in.grouped[order(dat.in.grouped$id_ind), ]
+  dat.in <- tail(dat.in, n.test)
+  dat.in <- dat.in[order(dat.in$id_ind), ]
+  dat.in$class <- dat.in.grouped$pred_class
+
+  # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pm_tf')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pm_tf)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('age', 'sex', 'DepInd', 'pm_tf', 'pred', 'SqError', 'class')
+  
+  # Calculate the median `pred` for each `class`
+  class_order <- age.in %>%
+    group_by(class) %>%
+    summarise(median_pred = median(pred, na.rm = TRUE)) %>%
+    arrange(median_pred) %>%
+    pull(class)
+  
+  # Reorder the `class` factor based on the median `pred`
+  age.in$class <- factor(age.in$class, levels = class_order)
+  
+  # Calculate class sizes
+  class_sizes <- age.in %>%
+    group_by(class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, SqError, pm_tf), names_to = "variable", values_to = "value")
+  
+  for(C in c(1,2)){
+  quants95 <- quantile(age.in[age.in$class==C,'pm_tf'], probs = c(0.025,0.975))
+  print(quants95[2]-quants95[1])
+  }
+  
+}
+```
+
+#sep 22
+adjusting the MAP inside`pm_sm_gpols_12init_K_sgld` by deleting the prior term on hidden layer as we are using lm()
+sep22_pm_sm_gpols_12init_sgld_lr  12714361
+
+let's look at loss
+##MAP of sgld
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <-750*4
+runs <- c(1:10)
+res.mat <- array(,dim=c(2,length(runs),num.it))
+for(i in runs){
+  res.mat[,which(i==runs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_sep22_pm_sm_gpols_12init_sgld_lr_K2_map__jobid_",i,".csv"))))[,1:num.it]
+ }
+
+# Assuming resdat is your dataframe
+# Add a row identifier
+# resdat <- as.data.frame(sqrt(res.mat[2,,]))
+resdat <- as.data.frame(res.mat[2,,])
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  # ylim(0.99,1.1) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "iterations", y = "Value", color = "Run number")
+
+resdat <- as.data.frame(res.mat[1,,])
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+# Reshape the data to long format
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+# Create the line plot
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  # ylim(0.88,1.1) +
+  theme_minimal() +
+  labs(title = "Train RMSE",x = "iterations", y = "Value", color = "Run number")
+```
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_sep22_pm_sm_gpols_12init_sgld_lr_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+These plots show barely any deviation
+
+
+Running
+//sep22_pm_sm_gpols_12init_sgld_lr99  12778303
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_sep22_pm_sm_gpols_12init_sgld_lr99_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "Iterations", y = "Value", color = "Run number")
+```
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 750 * 4
+runs <- c(1:3)
+res.mat <- array(, dim = c(2, length(runs), num.it))+
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[, which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_sep22_pm_sm_gpols_12init_sgld_lr99_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+```
+##investigate similar runs
+
+###low lr
+For `sep22_pm_sm_gpols_12init_sgld_lr_K2`
+Let's plot 5 and 7 to see if they overlap
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 750 * 4
+runs <- c(5,7)
+res.mat <- array(, dim = c(2, length(runs), num.it))
+for(i in runs){
+  res.mat[, which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_sep22_pm_sm_gpols_12init_sgld_lr_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat[2,,])  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "Iterations", y = "Value", color = "Run number")
+
+# Plotting Train RMSE
+resdat <- as.data.frame(res.mat[1,,])  # Use first row of res.mat (Train RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Train RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Train RMSE", x = "Iterations", y = "Value", color = "Run number")
+```
+```{r}
+library(coda)
+library(feather)
+library(mcmc)
+# Subset the subjects to a smaller number to reduce dimensionality
+ind <- 1:400  # Try reducing the number of subjects to 500 for diagnostic purposes
+
+# Function to read, process, and create MCMC objects
+process_mcmc_object <- function(job_id, ind) {
+  theta.matrix <- as.matrix(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_sep22_pm_sm_gpols_12init_sgld_lr_K2_inpred__jobid_', job_id, '.feather')))
+  splt <- split(theta.matrix[2,], theta.matrix[1,])  # Group 2nd row based on 1st row into a list
+  rs <- sapply(splt, c)  # Create time x subject matrix
+  rs <- rs[, ind]  # Select subjects based on index
+  
+  # Scale the data to reduce numerical instability
+  # rs <- scale(rs)
+  
+  mcmc_object <- as.mcmc(rs)
+  return(mcmc_object)
+}
+
+# Process the MCMC objects for different runs
+mcmc_object1 <- process_mcmc_object(5, ind)
+mcmc_object2 <- process_mcmc_object(7, ind)
+
+#1,2,3,5,6,10
+
+# Combine the MCMC chains into a list
+mcmc.chain <- mcmc.list(mcmc_object1, mcmc_object2)
+
+# Check if there are any columns (subjects) with zero variance
+check_zero_variance <- function(mcmc_object) {
+  apply(mcmc_object, 2, function(x) var(x) == 0)
+}
+
+# Identify subjects with zero variance across chains
+zero_variance_subjects <- check_zero_variance(mcmc_object1) |
+                          check_zero_variance(mcmc_object2)
+
+if (any(zero_variance_subjects)) {
+  warning("Some subjects have zero variance in all chains. These subjects will be removed.")
+  # Filter out subjects with zero variance
+  mcmc.chain <- lapply(mcmc.chain, function(chain) {
+    chain[, !zero_variance_subjects]
+  })
+  mcmc.chain <- mcmc.list(mcmc.chain)  # Rebuild the mcmc.list
+}
+
+# Perform Gelman-Rubin diagnostic
+r.hat <- tryCatch({
+  gelman.diag(mcmc.chain)
+}, error = function(e) {
+  message("Gelman-Rubin diagnostic failed: ", e$message)
+  NULL
+})
+
+if (!is.null(r.hat)) {
+  # Print the Gelman-Rubin diagnostic
+  # print(r.hat)
+  print(sum(r.hat$psrf[,1]<1.1)/nrow(r.hat$psrf)*100)
+
+} else {
+  message("Could not calculate Gelman-Rubin diagnostic.")
+}
+```
+This is very bad convergence. Note that if I used the exact same runs on high lr, I got the exact same answer
+
+traceplot of a few subjects
+```{r}
+library(coda)
+
+# Subset the subjects to a smaller number to reduce dimensionality
+ind <- 1:400  # Reduced number of subjects for diagnostic purposes
+
+# Function to read, process, and create MCMC objects
+process_mcmc_object <- function(job_id, ind) {
+  theta.matrix <- as.matrix(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_sgld_lr_K2_inpred__jobid_', job_id, '.feather')))
+  splt <- split(theta.matrix[2,], theta.matrix[1,])  # Group 2nd row based on 1st row into a list
+  rs <- sapply(splt, c)  # Create time x subject matrix
+  rs <- rs[, ind]  # Select subjects based on index
+  mcmc_object <- as.mcmc(rs)
+  return(mcmc_object)
+}
+
+# Process the MCMC objects for different runs
+mcmc_object1 <- process_mcmc_object(5, ind)
+mcmc_object2 <- process_mcmc_object(7, ind)
+
+# Pick 10 subjects (columns) from the two chains
+num_subjects <- 10
+subject_indices <- sample(1:ncol(mcmc_object1), num_subjects)  # Randomly sample 10 subjects
+
+# Create an mcmc.list object with the selected subjects
+mcmc.chain <- mcmc.list(
+  mcmc_object1[, subject_indices], 
+  mcmc_object2[, subject_indices]
+)
+
+# Plot the traceplots for the selected subjects using the coda package
+plot(mcmc.chain)
+```
+
+
+
+###high lr
+for `sep22_pm_sm_gpols_12init_sgld_lr99_K2` 
+let's do 6,8
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 750 * 4
+runs <- c(6,8)
+res.mat <- array(, dim = c(2, length(runs), num.it))
+for(i in runs){
+  res.mat[, which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_sep22_pm_sm_gpols_12init_sgld_lr99_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat[2,,])  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Test RMSE", x = "Iterations", y = "Value", color = "Run number")
+
+# Plotting Train RMSE
+resdat <- as.data.frame(res.mat[1,,])  # Use first row of res.mat (Train RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Train RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Train RMSE", x = "Iterations", y = "Value", color = "Run number")
+```
+```{r}
+library(coda)
+library(feather)
+library(mcmc)
+# Subset the subjects to a smaller number to reduce dimensionality
+ind <- 1:400  # Try reducing the number of subjects to 500 for diagnostic purposes
+
+# Function to read, process, and create MCMC objects
+process_mcmc_object <- function(job_id, ind) {
+  theta.matrix <- as.matrix(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_sep22_pm_sm_gpols_12init_sgld_lr99_K2_inpred__jobid_', job_id, '.feather')))
+  splt <- split(theta.matrix[2,], theta.matrix[1,])  # Group 2nd row based on 1st row into a list
+  rs <- sapply(splt, c)  # Create time x subject matrix
+  rs <- rs[, ind]  # Select subjects based on index
+  
+  # Scale the data to reduce numerical instability
+  # rs <- scale(rs)
+  
+  mcmc_object <- as.mcmc(rs)
+  return(mcmc_object)
+}
+
+# Process the MCMC objects for different runs
+mcmc_object1 <- process_mcmc_object(6, ind)
+mcmc_object2 <- process_mcmc_object(8, ind)
+
+#1,2,3,5,6,10
+
+# Combine the MCMC chains into a list
+mcmc.chain <- mcmc.list(mcmc_object1, mcmc_object2)
+
+# Check if there are any columns (subjects) with zero variance
+check_zero_variance <- function(mcmc_object) {
+  apply(mcmc_object, 2, function(x) var(x) == 0)
+}
+
+# Identify subjects with zero variance across chains
+zero_variance_subjects <- check_zero_variance(mcmc_object1) |
+                          check_zero_variance(mcmc_object2)
+
+if (any(zero_variance_subjects)) {
+  warning("Some subjects have zero variance in all chains. These subjects will be removed.")
+  # Filter out subjects with zero variance
+  mcmc.chain <- lapply(mcmc.chain, function(chain) {
+    chain[, !zero_variance_subjects]
+  })
+  mcmc.chain <- mcmc.list(mcmc.chain)  # Rebuild the mcmc.list
+}
+
+# Perform Gelman-Rubin diagnostic
+r.hat <- tryCatch({
+  gelman.diag(mcmc.chain)
+}, error = function(e) {
+  message("Gelman-Rubin diagnostic failed: ", e$message)
+  NULL
+})
+
+if (!is.null(r.hat)) {
+  # Print the Gelman-Rubin diagnostic
+  # print(r.hat)
+  print(sum(r.hat$psrf[,1]<1.1)/nrow(r.hat$psrf)*100)
+
+} else {
+  message("Could not calculate Gelman-Rubin diagnostic.")
+}
+```
+This is very bad convergence
+
+traceplot of a few subjects
+```{r}
+library(coda)
+
+# Pick 10 subjects (columns) from the two chains
+num_subjects <- 10
+subject_indices <- sample(1:ncol(mcmc_object1), num_subjects)  # Randomly sample 10 subjects
+
+# Create an mcmc.list object with the selected subjects
+mcmc.chain <- mcmc.list(
+  mcmc_object1[, subject_indices], 
+  mcmc_object2[, subject_indices]
+)
+
+# Plot the traceplots for the selected subjects using the coda package
+plot(mcmc.chain)
+```
+Mixing seems alright here. I think higher lr might lead to good mixing??
+
+##Saliency 
+I did saliency plot for k-GP-OLS in 
+//`sep24_pm_sm_gpols_12init_bbs`  13335761
+I created `sep24_pm/` for saliency viz
+
+Created
+`pm_sm_gpols_12init_K_sgld_run.R` => running SGLD on a fixed initial point/run
+//sep22_pm_sm_gpols_12init_sgld_lr99_run2 13515044
+
+Finding similar runs with the same classes
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)  # Ensure this package is installed for reading feather files
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(1:10)
+
+for (r in success.run) {
+  # Load and process data
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_sep24_pm_sm_gpols_12init_bbs_K2_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  
+  # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pm_tf')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pm_tf)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('age', 'sex', 'DepInd', 'pm_tf', 'pred', 'SqError', 'class')
+  
+  # Calculate the median `pred` for each `class`
+  class_order <- age.in %>%
+    group_by(class) %>%
+    summarise(median_pred = median(pred, na.rm = TRUE)) %>%
+    arrange(median_pred) %>%
+    pull(class)
+  
+  # Reorder the `class` factor based on the median `pred`
+  age.in$class <- factor(age.in$class, levels = class_order)
+  
+  # Calculate class sizes
+  class_sizes <- age.in %>%
+    group_by(class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, SqError, pm_tf), names_to = "variable", values_to = "value")
+  
+  # Create the boxplot with class sizes in the legend
+  p <- ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+    geom_boxplot() +
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Age, Sex, DepInd, tf_pm, Labeled by Class for Run", r),
+         x = "Class",
+         y = "Value") +
+    scale_fill_discrete(labels = class_labels)
+  
+  print(p)
+}
+```
+It's all runs but run 9, so runs 1-8,10
+Created a directory `sep24_similar`
+
+
+#sep 26
+
+##Convergence, same initial
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_sep22_pm_sm_gpols_12init_sgld_lr99_run2_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+
+Now let's observe convergence 
+```{r}
+library(coda)
+library(feather)
+library(mcmc)
+# Subset the subjects to a smaller number to reduce dimensionality
+ind <- 1:400  # Try reducing the number of subjects to 500 for diagnostic purposes
+
+# Function to read, process, and create MCMC objects
+process_mcmc_object <- function(job_id, ind) {
+  theta.matrix <- as.matrix(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_sep22_pm_sm_gpols_12init_sgld_lr99_run2_K2_inpred__jobid_', job_id, '.feather')))
+  splt <- split(theta.matrix[2,], theta.matrix[1,])  # Group 2nd row based on 1st row into a list
+  rs <- sapply(splt, c)  # Create time x subject matrix
+  rs <- rs[, ind]  # Select subjects based on index
+  
+  # Scale the data to reduce numerical instability
+  # rs <- scale(rs)
+  
+  mcmc_object <- as.mcmc(rs)
+  return(mcmc_object)
+}
+
+# Process the MCMC objects for different runs
+mcmc_object1 <- process_mcmc_object(6, ind)
+mcmc_object2 <- process_mcmc_object(8, ind)
+
+#1,2,3,5,6,10
+
+# Combine the MCMC chains into a list
+mcmc.chain <- mcmc.list(mcmc_object1, mcmc_object2)
+
+# Check if there are any columns (subjects) with zero variance
+check_zero_variance <- function(mcmc_object) {
+  apply(mcmc_object, 2, function(x) var(x) == 0)
+}
+
+# Identify subjects with zero variance across chains
+zero_variance_subjects <- check_zero_variance(mcmc_object1) |
+                          check_zero_variance(mcmc_object2)
+
+if (any(zero_variance_subjects)) {
+  warning("Some subjects have zero variance in all chains. These subjects will be removed.")
+  # Filter out subjects with zero variance
+  mcmc.chain <- lapply(mcmc.chain, function(chain) {
+    chain[, !zero_variance_subjects]
+  })
+  mcmc.chain <- mcmc.list(mcmc.chain)  # Rebuild the mcmc.list
+}
+
+# Perform Gelman-Rubin diagnostic
+r.hat <- tryCatch({
+  gelman.diag(mcmc.chain)
+}, error = function(e) {
+  message("Gelman-Rubin diagnostic failed: ", e$message)
+  NULL
+})
+
+if (!is.null(r.hat)) {
+  # Print the Gelman-Rubin diagnostic
+  # print(r.hat)
+  print(sum(r.hat$psrf[,1]<1.1)/nrow(r.hat$psrf)*100)
+
+} else {
+  message("Could not calculate Gelman-Rubin diagnostic.")
+}
+```
+Still very low convergence??
+traceplot of a few subjects
+```{r}
+library(coda)
+
+# Pick 10 subjects (columns) from the two chains
+num_subjects <- 10
+subject_indices <- sample(1:ncol(mcmc_object1), num_subjects)  # Randomly sample 10 subjects
+
+# Create an mcmc.list object with the selected subjects
+mcmc.chain <- mcmc.list(
+  mcmc_object1[, subject_indices], 
+  mcmc_object2[, subject_indices]
+)
+
+# Plot the traceplots for the selected subjects using the coda package
+plot(mcmc.chain)
+```
+
+```{r}
+library(coda)
+library(feather)
+library(mcmc)
+# Subset the subjects to a smaller number to reduce dimensionality
+ind <- 1:400  # Try reducing the number of subjects to 500 for diagnostic purposes
+
+# Function to read, process, and create MCMC objects
+process_mcmc_object <- function(job_id, ind) {
+  theta.matrix <- as.matrix(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_sep22_pm_sm_gpols_12init_sgld_lr99_run2_K2_inpred__jobid_', job_id, '.feather')))
+  splt <- split(theta.matrix[2,], theta.matrix[1,])  # Group 2nd row based on 1st row into a list
+  rs <- sapply(splt, c)  # Create time x subject matrix
+  rs <- rs[, ind]  # Select subjects based on index
+  
+  # Scale the data to reduce numerical instability
+  # rs <- scale(rs)
+  
+  mcmc_object <- as.mcmc(rs)
+  return(mcmc_object)
+}
+
+# Process the MCMC objects for different runs
+mcmc_object1 <- process_mcmc_object(6, ind)
+mcmc_object2 <- process_mcmc_object(10, ind)
+
+#1,2,3,5,6,10
+
+# Combine the MCMC chains into a list
+mcmc.chain <- mcmc.list(mcmc_object1, mcmc_object2)
+
+# Check if there are any columns (subjects) with zero variance
+check_zero_variance <- function(mcmc_object) {
+  apply(mcmc_object, 2, function(x) var(x) == 0)
+}
+
+# Identify subjects with zero variance across chains
+zero_variance_subjects <- check_zero_variance(mcmc_object1) |
+                          check_zero_variance(mcmc_object2)
+
+if (any(zero_variance_subjects)) {
+  warning("Some subjects have zero variance in all chains. These subjects will be removed.")
+  # Filter out subjects with zero variance
+  mcmc.chain <- lapply(mcmc.chain, function(chain) {
+    chain[, !zero_variance_subjects]
+  })
+  mcmc.chain <- mcmc.list(mcmc.chain)  # Rebuild the mcmc.list
+}
+
+# Perform Gelman-Rubin diagnostic
+r.hat <- tryCatch({
+  gelman.diag(mcmc.chain)
+}, error = function(e) {
+  message("Gelman-Rubin diagnostic failed: ", e$message)
+  NULL
+})
+
+if (!is.null(r.hat)) {
+  # Print the Gelman-Rubin diagnostic
+  # print(r.hat)
+  print(sum(r.hat$psrf[,1]<1.1)/nrow(r.hat$psrf)*100)
+
+} else {
+  message("Could not calculate Gelman-Rubin diagnostic.")
+}
+```
+we can bump this number up on (pair with 10) to 44.5 on pair (6,10), lowest is 19.5 (7,10)
+
+#29 Sep
+Running Simulation. Let's try same thing as before.
+Take a realisation run then fit the model. First, let's try a clear split between class
+
+Find a sensible Run
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)  # Ensure this package is installed for reading feather files
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(1:10)
+
+for (r in success.run) {
+  # Load and process data
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K2_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  
+  # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pm_tf')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pm_tf)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('age', 'sex', 'DepInd', 'pm_tf', 'pred', 'SqError', 'class')
+  
+  # Calculate the median `pred` for each `class`
+  class_order <- age.in %>%
+    group_by(class) %>%
+    summarise(median_pred = median(pred, na.rm = TRUE)) %>%
+    arrange(median_pred) %>%
+    pull(class)
+  
+  # Reorder the `class` factor based on the median `pred`
+  age.in$class <- factor(age.in$class, levels = class_order)
+  
+  # Calculate class sizes
+  class_sizes <- age.in %>%
+    group_by(class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, SqError, pm_tf), names_to = "variable", values_to = "value")
+  
+  # Create the boxplot with class sizes in the legend
+  p <- ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+    geom_boxplot() +
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Age, Sex, DepInd, tf_pm, Labeled by Class for Run", r),
+         x = "Class",
+         y = "Value") +
+    scale_fill_discrete(labels = class_labels)
+  
+  print(p)
+}
+```
+They all look similar, let's arbitrarily pick Run 10
+Load in that run
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)  # Ensure this package is installed for reading feather files
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+  # Load and process data
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K2_inpred__jobid_', 10, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  dat.in <- dat.in[order(dat.in$id_ind), ]
+  
+#
+  n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x)
+  # Load and process data
+  dat.out <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K2_outpred__jobid_', 10, '.feather'))))[, c(1:3)]
+  dat.out <- tail(dat.out, n.test)
+  colnames(dat.out) <- c('id_ind', 'pred', 'class')
+  dat.out <- dat.out[order(dat.out$id_ind), ]
+dat.full <- rbind(dat.in,dat.out)
+dat.full <- dat.full[order(dat.full$id_ind), ]
+
+age_tab$class <- NA
+age_tab$pred <- NA
+for(i in dat.full$id_ind){
+  age_tab$class[i] <- dat.full$class[dat.full$id_ind==i]
+  age_tab$pred[i] <- dat.full$pred[dat.full$id_ind==i]
+}
+#doing amplify
+age_tab$pred_amp <- ifelse(age_tab$class == 1, age_tab$pred, 
+                                   ifelse(age_tab$class == 2, age_tab$pred +2, NA))
+
+write_feather(age_tab, '/well/nichols/users/qcv214/KGPNN/cog/sim_agesex_strat2.feather')
+```
+
+Plotting
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)  # Ensure this package is installed for reading feather files
+
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/sim_agesex_strat2.feather'))
+
+  class_order <- age_tab %>%
+    group_by(class) %>%
+    summarise(median_pred = median(pm_tf, na.rm = TRUE)) %>%
+    arrange(median_pred) %>%
+    pull(class)
+  
+  # Reorder the `class` factor based on the median `pred`
+  age_tab$class <- factor(age_tab$class, levels = class_order)
+  
+  # Calculate class sizes
+  class_sizes <- age_tab %>%
+    group_by(class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$class
+
+  # Reshape the data for plotting
+  age_tab_long <- pivot_longer(age_tab, cols = c(age, sex, DepInd, pm_tf,pred,pred_amp), names_to = "variable", values_to = "value")
+  # Create the boxplot with class sizes in the legend
+  p <- ggplot(age_tab_long, aes(x = class, y = value, fill = class)) +
+    geom_boxplot() +
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Age, Sex, DepInd, tf_pm, Labeled by Class for Run", 10),
+         x = "Class",
+         y = "Value") +
+    scale_fill_discrete(labels = class_labels)
+  
+  print(p)
+```
+
+##To do
+I think there 3 things to try
+1. Model pred
+2. Model pred_amp
+3. Increase K and see if it can model the classes correctly.
+
+`sim_pm_sm_gpols_K.R``sim_pm_sm_gpols_K_pred_amp.R`
+Running
+//sep29_pm_sm_gpols_pred_amp, K=2 and 4   14290220
+//sep29_pm_sm_gpols_pred, K=2 and 4  14290222
+
+//sep29_pm_sm_gpols_pred_amp_bbs 14292040
+//sep29_pm_sm_gpols_pred_bbs 14292287
+
+##Plotting pred_amp
+
+```{r}
+library(feather)
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/sim_agesex_strat2.feather'))
+train.test.ind <- list()
+train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x
+train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x
+```
+
+###Ridge
+```{r}
+#lasso
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/sim_oct1_pred_amp_lasso_noscale_",i,".csv"))))
+}
+(l.train <- quantile(hs.int[,5],c(0.5)))
+(l.test <-quantile(hs.int[,6],c(0.5)))
+
+#ridge
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/sim_oct1_pred_amp_ridge_noscale_",i,".csv"))))
+}
+(r.train <- quantile(hs.int[,5],c(0.5)))
+(r.test <-quantile(hs.int[,6],c(0.5)))
+
+#ridge
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/sim_oct1_pred_amp_gpr_noscale_",i,".csv"))))
+}
+(gpr.train <- quantile(hs.int[,5],c(0.5)))
+(gpr.test <-quantile(hs.int[,6],c(0.5)))
+```
+
+
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2, 4)
+num.it <- 500 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/sim_sep29_pm_sm_gpols_pred_amp_bbs_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pred_amp[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.5, 1.3) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for", Class, " Classes"), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pred_amp[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0, 1.3) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for", Class, " Classes"), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+Plot distribution
+###K2
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)  # Ensure this package is installed for reading feather files
+library(mclust)
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/sim_agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(1:10)
+
+for (r in success.run) {
+  # Load and process data
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/sim_sep29_pm_sm_gpols_pred_amp_bbs_K2_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  
+  # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pred_amp','class')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pred_amp)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('age', 'sex', 'DepInd', 'pred_amp','class_true', 'pred', 'SqError', 'class')
+  
+  # Calculate the median `pred` for each `class`
+  class_order <- age.in %>%
+    group_by(class) %>%
+    summarise(median_pred = median(pred, na.rm = TRUE)) %>%
+    arrange(median_pred) %>%
+    pull(class)
+  
+  # Reorder the `class` factor based on the median `pred`
+  age.in$class <- factor(age.in$class, levels = class_order)
+  
+  # Calculate class sizes
+  class_sizes <- age.in %>%
+    group_by(class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, SqError, pred_amp,class_true), names_to = "variable", values_to = "value")
+  
+  # Create the boxplot with class sizes in the legend
+  p <- ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+    geom_boxplot() +
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Age, Sex, DepInd, tf_pm, Labeled by Class for Run", r),
+         x = "Class",
+         y = "Value") +
+    scale_fill_discrete(labels = class_labels)
+  
+  print(p)
+}
+```
+it should split into 1097-903. Seems like there is actually an error, BUT all runs converge to the same splitting somehow.
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)
+library(mclust)  # For calculating ARI or other similarity metrics
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/sim_agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(1:10)
+
+for (r in success.run) {
+  # Load and process data
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/sim_sep29_pm_sm_gpols_pred_amp_bbs_K2_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  
+  # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pred_amp', 'class')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pred_amp)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('age', 'sex', 'DepInd', 'pred_true', 'class_true', 'pred', 'SqError', 'class')
+  
+  # Calculate a similarity metric (e.g., Adjusted Rand Index - ARI)
+  ari_value <- adjustedRandIndex(age.in$class_true, age.in$class)
+  
+  # Create a separate dataframe for the similarity metric (ARI) to be included as a single point
+  similarity_data <- data.frame(
+    class = factor(1),  # Just one "class" for the similarity metric
+    value = ari_value,
+    variable = "ARI"
+  )
+  
+  # Calculate the median `pred` for each `class`
+  class_order <- age.in %>%
+    group_by(class) %>%
+    summarise(median_pred = median(pred, na.rm = TRUE)) %>%
+    arrange(median_pred) %>%
+    pull(class)
+  
+  # Reorder the `class` factor based on the median `pred`
+  age.in$class <- factor(age.in$class, levels = class_order)
+  
+  # Calculate class sizes
+  class_sizes <- age.in %>%
+    group_by(class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, class_true, SqError, pred_true), names_to = "variable", values_to = "value")
+  
+  # Bind the ARI data to the rest of the data
+  combined_data <- bind_rows(age.in_long, similarity_data)
+  
+  # Create the boxplot with class sizes in the legend and similarity metric
+  p <- ggplot(combined_data, aes(x = class, y = value, fill = class)) +
+    geom_boxplot(data = combined_data %>% filter(variable != "ARI"), show.legend = TRUE) +  # Show legend for original boxplots
+    geom_point(data = combined_data %>% filter(variable == "ARI"), aes(x = class, y = value), color = "blue", size = 5, show.legend = FALSE) +  # No legend for ARI
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Age, Sex, DepInd, tf_pm, and ARI for Run", r),
+         x = "Class",
+         y = "Value") +
+    scale_fill_discrete(labels = class_labels) +
+    theme(legend.position = "right")  # Keep the legend on the right
+  
+  print(p)
+}
+```
+
+
+###K4
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)
+library(mclust)  # For calculating ARI or other similarity metrics
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/sim_agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(1:10)
+
+for (r in success.run) {
+  # Load and process data
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/sim_sep29_pm_sm_gpols_pred_amp_bbs_K4_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  
+  # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pred_amp', 'class')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pred_amp)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('age', 'sex', 'DepInd', 'pred_true', 'class_true', 'pred', 'SqError', 'class')
+  
+  # Calculate a similarity metric (e.g., Adjusted Rand Index - ARI)
+  ari_value <- adjustedRandIndex(age.in$class_true, age.in$class)
+  
+  # Create a separate dataframe for the similarity metric (ARI) to be included as a single point
+  similarity_data <- data.frame(
+    class = factor(1),  # Just one "class" for the similarity metric
+    value = ari_value,
+    variable = "ARI"
+  )
+  
+  # Calculate the median `pred` for each `class`
+  class_order <- age.in %>%
+    group_by(class) %>%
+    summarise(median_pred = median(pred, na.rm = TRUE)) %>%
+    arrange(median_pred) %>%
+    pull(class)
+  
+  # Reorder the `class` factor based on the median `pred`
+  age.in$class <- factor(age.in$class, levels = class_order)
+  
+  # Calculate class sizes
+  class_sizes <- age.in %>%
+    group_by(class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, class_true, SqError, pred_true), names_to = "variable", values_to = "value")
+  
+  # Bind the ARI data to the rest of the data
+  combined_data <- bind_rows(age.in_long, similarity_data)
+  
+  # Create the boxplot with class sizes in the legend and similarity metric
+  p <- ggplot(combined_data, aes(x = class, y = value, fill = class)) +
+    geom_boxplot(data = combined_data %>% filter(variable != "ARI"), show.legend = TRUE) +  # Show legend for original boxplots
+    geom_point(data = combined_data %>% filter(variable == "ARI"), aes(x = class, y = value), color = "blue", size = 5, show.legend = FALSE) +  # No legend for ARI
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Age, Sex, DepInd, tf_pm, and ARI for Run", r),
+         x = "Class",
+         y = "Value") +
+    scale_fill_discrete(labels = class_labels) +
+    theme(legend.position = "right")  # Keep the legend on the right
+  
+  print(p)
+}
+```
+It make exhausts all 4 classes, which shouldn't be the case
+
+
+##Plotting for pred
+```{r}
+#lasso
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/sim_oct1_pred_lasso_noscale_",i,".csv"))))
+}
+(l.train <- quantile(hs.int[,5],c(0.5)))
+(l.test <-quantile(hs.int[,6],c(0.5)))
+
+#ridge
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/sim_oct1_pred_ridge_noscale_",i,".csv"))))
+}
+(r.train <- quantile(hs.int[,5],c(0.5)))
+(r.test <-quantile(hs.int[,6],c(0.5)))
+
+#ridge
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/sim_oct1_pred_gpr_noscale_",i,".csv"))))
+}
+(gpr.train <- quantile(hs.int[,5],c(0.5)))
+(gpr.test <-quantile(hs.int[,6],c(0.5)))
+```
+
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2, 4)
+num.it <- 500 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/sim_sep29_pm_sm_gpols_pred_bbs_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pred[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0 ,.5) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for", Class, " Classes"), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pred[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0, .5) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for", Class, " Classes"), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+
+###K2
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)
+library(mclust)  # For calculating ARI or other similarity metrics
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/sim_agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(1:10)
+
+for (r in success.run) {
+  # Load and process data
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/sim_sep29_pm_sm_gpols_pred_bbs_K2_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  
+  # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pred', 'class')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pred)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('age', 'sex', 'DepInd', 'pred_true', 'class_true', 'pred', 'SqError', 'class')
+  
+  # Calculate a similarity metric (e.g., Adjusted Rand Index - ARI)
+  ari_value <- adjustedRandIndex(age.in$class_true, age.in$class)
+  
+  # Create a separate dataframe for the similarity metric (ARI) to be included as a single point
+  similarity_data <- data.frame(
+    class = factor(1),  # Just one "class" for the similarity metric
+    value = ari_value,
+    variable = "ARI"
+  )
+  
+  # Calculate the median `pred` for each `class`
+  class_order <- age.in %>%
+    group_by(class) %>%
+    summarise(median_pred = median(pred, na.rm = TRUE)) %>%
+    arrange(median_pred) %>%
+    pull(class)
+  
+  # Reorder the `class` factor based on the median `pred`
+  age.in$class <- factor(age.in$class, levels = class_order)
+  
+  # Calculate class sizes
+  class_sizes <- age.in %>%
+    group_by(class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, class_true, SqError, pred_true), names_to = "variable", values_to = "value")
+  
+  # Bind the ARI data to the rest of the data
+  combined_data <- bind_rows(age.in_long, similarity_data)
+  
+  # Create the boxplot with class sizes in the legend and similarity metric
+  p <- ggplot(combined_data, aes(x = class, y = value, fill = class)) +
+    geom_boxplot(data = combined_data %>% filter(variable != "ARI"), show.legend = TRUE) +  # Show legend for original boxplots
+    geom_point(data = combined_data %>% filter(variable == "ARI"), aes(x = class, y = value), color = "blue", size = 5, show.legend = FALSE) +  # No legend for ARI
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Age, Sex, DepInd, tf_pm, and ARI for Run", r),
+         x = "Class",
+         y = "Value") +
+    scale_fill_discrete(labels = class_labels) +
+    theme(legend.position = "right")  # Keep the legend on the right
+  
+  print(p)
+}
+```
+
+we don't see convergence here. Though the classes don't deviate too much from true values
+
+###K4
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)
+library(mclust)  # For calculating ARI or other similarity metrics
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/sim_agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(1:10)
+
+for (r in success.run) {
+  # Load and process data
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/sim_sep29_pm_sm_gpols_pred_bbs_K4_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  
+  # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pred', 'class')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pred)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('age', 'sex', 'DepInd', 'pred_true', 'class_true', 'pred', 'SqError', 'class')
+  
+  # Calculate a similarity metric (e.g., Adjusted Rand Index - ARI)
+  ari_value <- adjustedRandIndex(age.in$class_true, age.in$class)
+  
+  # Create a separate dataframe for the similarity metric (ARI) to be included as a single point
+  similarity_data <- data.frame(
+    class = factor(1),  # Just one "class" for the similarity metric
+    value = ari_value,
+    variable = "ARI"
+  )
+  
+  # Calculate the median `pred` for each `class`
+  class_order <- age.in %>%
+    group_by(class) %>%
+    summarise(median_pred = median(pred, na.rm = TRUE)) %>%
+    arrange(median_pred) %>%
+    pull(class)
+  
+  # Reorder the `class` factor based on the median `pred`
+  age.in$class <- factor(age.in$class, levels = class_order)
+  
+  # Calculate class sizes
+  class_sizes <- age.in %>%
+    group_by(class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, class_true, SqError, pred_true), names_to = "variable", values_to = "value")
+  
+  # Bind the ARI data to the rest of the data
+  combined_data <- bind_rows(age.in_long, similarity_data)
+  
+  # Create the boxplot with class sizes in the legend and similarity metric
+  p <- ggplot(combined_data, aes(x = class, y = value, fill = class)) +
+    geom_boxplot(data = combined_data %>% filter(variable != "ARI"), show.legend = TRUE) +  # Show legend for original boxplots
+    geom_point(data = combined_data %>% filter(variable == "ARI"), aes(x = class, y = value), color = "blue", size = 5, show.legend = FALSE) +  # No legend for ARI
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Age, Sex, DepInd, tf_pm, and ARI for Run", r),
+         x = "Class",
+         y = "Value") +
+    scale_fill_discrete(labels = class_labels) +
+    theme(legend.position = "right")  # Keep the legend on the right
+  
+  print(p)
+}
+```
+The 4 classes here don't detect either
+
+#30 Sep
+
+I suppose we should also look at sgld? jian mentioned about observing posterior dist
+//sep29_pm_sm_gpols_pred_sgld_lr99 14382222
+//sep29_pm_sm_gpols_pred_amp_sgld_lr99 14382344
+
+
+##SGLD
+Let's look at K =2 for now
+
+###pred amp
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 750 * 4
+runs <- c(1:5,7:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/sim_sep29_pm_sm_gpols_pred_amp_sgld_lr99_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+Run 6 appear to fail.
+
+Boxplot - without similarity. Similarity can be run using the external script
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)
+library(mclust)
+
+# Function to get the mode
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/sim_agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(1:10)
+
+for (r in success.run) {
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/sim_sep29_pm_sm_gpols_pred_amp_sgld_lr99_K2_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test / 4 * 1000)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  dat.in.grouped <- dat.in %>%
+    group_by(id_ind) %>%
+    summarize(pred_class = getmode(class))
+  dat.in.grouped <- dat.in.grouped[order(dat.in.grouped$id_ind), ]
+  dat.in <- tail(dat.in, n.test)
+  dat.in <- dat.in[order(dat.in$id_ind), ]
+  dat.in$class <- dat.in.grouped$pred_class
+
+  # Merge with age and sex information
+   # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pred_amp', 'class')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pred_amp)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('age', 'sex', 'DepInd', 'pred_true', 'class_true', 'pred', 'SqError', 'class')
+  
+  # Calculate a similarity metric (e.g., Adjusted Rand Index - ARI)
+  ari_value <- adjustedRandIndex(age.in$class_true, age.in$class)
+  
+  # Create a separate dataframe for the similarity metric (ARI) to be included as a single point
+  similarity_data <- data.frame(
+    class = factor(1),  # Just one "class" for the similarity metric
+    value = ari_value,
+    variable = "ARI"
+  )
+  
+  # Calculate the median `pred` for each `class`
+  class_order <- age.in %>%
+    group_by(class) %>%
+    summarise(median_pred = median(pred, na.rm = TRUE)) %>%
+    arrange(median_pred) %>%
+    pull(class)
+  
+  # Reorder the `class` factor based on the median `pred`
+  age.in$class <- factor(age.in$class, levels = class_order)
+  
+  # Calculate class sizes
+  class_sizes <- age.in %>%
+    group_by(class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, class_true, SqError, pred_true), names_to = "variable", values_to = "value")
+  
+  # Bind the ARI data to the rest of the data
+  combined_data <- bind_rows(age.in_long, similarity_data)
+  
+  # Create the boxplot with class sizes in the legend and similarity metric
+  p <- ggplot(combined_data, aes(x = class, y = value, fill = class)) +
+    geom_boxplot(data = combined_data %>% filter(variable != "ARI"), show.legend = TRUE) +  # Show legend for original boxplots
+    geom_point(data = combined_data %>% filter(variable == "ARI"), aes(x = class, y = value), color = "blue", size = 5, show.legend = FALSE) +  # No legend for ARI
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Age, Sex, DepInd, tf_pm, and ARI for Run", r),
+         x = "Class",
+         y = "Value") +
+    scale_fill_discrete(labels = class_labels) +
+    theme(legend.position = "right")  # Keep the legend on the right
+  
+  print(p)
+}
+```
+
+###pred
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/sim_sep29_pm_sm_gpols_pred_sgld_lr99_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+
+Boxplot
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)
+library(mclust)
+
+# Function to get the mode
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/sim_agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(1:10)
+
+for (r in success.run) {
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/sim_sep29_pm_sm_gpols_pred_sgld_lr99_K2_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test / 4 * 1000)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  dat.in.grouped <- dat.in %>%
+    group_by(id_ind) %>%
+    summarize(pred_class = getmode(class))
+  dat.in.grouped <- dat.in.grouped[order(dat.in.grouped$id_ind), ]
+  dat.in <- tail(dat.in, n.test)
+  dat.in <- dat.in[order(dat.in$id_ind), ]
+  dat.in$class <- dat.in.grouped$pred_class
+
+  # Merge with age and sex information
+   # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pred', 'class')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pred)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('age', 'sex', 'DepInd', 'pred_true', 'class_true', 'pred', 'SqError', 'class')
+  
+  # Calculate a similarity metric (e.g., Adjusted Rand Index - ARI)
+  ari_value <- adjustedRandIndex(age.in$class_true, age.in$class)
+  
+  # Create a separate dataframe for the similarity metric (ARI) to be included as a single point
+  similarity_data <- data.frame(
+    class = factor(1),  # Just one "class" for the similarity metric
+    value = ari_value,
+    variable = "ARI"
+  )
+  
+  # Calculate the median `pred` for each `class`
+  class_order <- age.in %>%
+    group_by(class) %>%
+    summarise(median_pred = median(pred, na.rm = TRUE)) %>%
+    arrange(median_pred) %>%
+    pull(class)
+  
+  # Reorder the `class` factor based on the median `pred`
+  age.in$class <- factor(age.in$class, levels = class_order)
+  
+  # Calculate class sizes
+  class_sizes <- age.in %>%
+    group_by(class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, class_true, SqError, pred_true), names_to = "variable", values_to = "value")
+  
+  # Bind the ARI data to the rest of the data
+  combined_data <- bind_rows(age.in_long, similarity_data)
+  
+  # Create the boxplot with class sizes in the legend and similarity metric
+  p <- ggplot(combined_data, aes(x = class, y = value, fill = class)) +
+    geom_boxplot(data = combined_data %>% filter(variable != "ARI"), show.legend = TRUE) +  # Show legend for original boxplots
+    geom_point(data = combined_data %>% filter(variable == "ARI"), aes(x = class, y = value), color = "blue", size = 5, show.legend = FALSE) +  # No legend for ARI
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Age, Sex, DepInd, tf_pm, and ARI for Run", r),
+         x = "Class",
+         y = "Value") +
+    scale_fill_discrete(labels = class_labels) +
+    theme(legend.position = "right")  # Keep the legend on the right
+  
+  print(p)
+}
+```
+
+All SGLD here are terrible, may need to tune down the learning rate from 99 to lower
+
+Below is for lr = 1e-4
+//sep29_pm_sm_gpols_pred_amp_sgld 14410364
+//sep29_pm_sm_gpols_pred_sgld 14410373
+
+###pred amp
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 750 * 4
+runs <- c(1:5,7:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/sim_sep29_pm_sm_gpols_pred_amp_sgld_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+Run 6 appear to fail.
+
+Boxplot - without similarity. Similarity can be run using the external script
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)
+library(mclust)
+
+# Function to get the mode
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/sim_agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(1:10)
+
+for (r in success.run) {
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/sim_sep29_pm_sm_gpols_pred_amp_sgld_K2_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test / 4 * 1000)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  dat.in.grouped <- dat.in %>%
+    group_by(id_ind) %>%
+    summarize(pred_class = getmode(class))
+  dat.in.grouped <- dat.in.grouped[order(dat.in.grouped$id_ind), ]
+  dat.in <- tail(dat.in, n.test)
+  dat.in <- dat.in[order(dat.in$id_ind), ]
+  dat.in$class <- dat.in.grouped$pred_class
+
+  # Merge with age and sex information
+   # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pred_amp', 'class')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pred_amp)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('age', 'sex', 'DepInd', 'pred_true', 'class_true', 'pred', 'SqError', 'class')
+  
+  # Calculate a similarity metric (e.g., Adjusted Rand Index - ARI)
+  ari_value <- adjustedRandIndex(age.in$class_true, age.in$class)
+  
+  # Create a separate dataframe for the similarity metric (ARI) to be included as a single point
+  similarity_data <- data.frame(
+    class = factor(1),  # Just one "class" for the similarity metric
+    value = ari_value,
+    variable = "ARI"
+  )
+  
+  # Calculate the median `pred` for each `class`
+  class_order <- age.in %>%
+    group_by(class) %>%
+    summarise(median_pred = median(pred, na.rm = TRUE)) %>%
+    arrange(median_pred) %>%
+    pull(class)
+  
+  # Reorder the `class` factor based on the median `pred`
+  age.in$class <- factor(age.in$class, levels = class_order)
+  
+  # Calculate class sizes
+  class_sizes <- age.in %>%
+    group_by(class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, class_true, SqError, pred_true), names_to = "variable", values_to = "value")
+  
+  # Bind the ARI data to the rest of the data
+  combined_data <- bind_rows(age.in_long, similarity_data)
+  
+  # Create the boxplot with class sizes in the legend and similarity metric
+  p <- ggplot(combined_data, aes(x = class, y = value, fill = class)) +
+    geom_boxplot(data = combined_data %>% filter(variable != "ARI"), show.legend = TRUE) +  # Show legend for original boxplots
+    geom_point(data = combined_data %>% filter(variable == "ARI"), aes(x = class, y = value), color = "blue", size = 5, show.legend = FALSE) +  # No legend for ARI
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Age, Sex, DepInd, tf_pm, and ARI for Run", r),
+         x = "Class",
+         y = "Value") +
+    scale_fill_discrete(labels = class_labels) +
+    theme(legend.position = "right")  # Keep the legend on the right
+  
+  print(p)
+}
+```
+
+###pred
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/sim_sep29_pm_sm_gpols_pred_sgld_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+
+Boxplot
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)
+library(mclust)
+
+# Function to get the mode
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/sim_agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(1:10)
+
+for (r in success.run) {
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/sim_sep29_pm_sm_gpols_pred_sgld_K2_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test / 4 * 1000)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  dat.in.grouped <- dat.in %>%
+    group_by(id_ind) %>%
+    summarize(pred_class = getmode(class))
+  dat.in.grouped <- dat.in.grouped[order(dat.in.grouped$id_ind), ]
+  dat.in <- tail(dat.in, n.test)
+  dat.in <- dat.in[order(dat.in$id_ind), ]
+  dat.in$class <- dat.in.grouped$pred_class
+
+  # Merge with age and sex information
+   # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pred', 'class')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pred)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('age', 'sex', 'DepInd', 'pred_true', 'class_true', 'pred', 'SqError', 'class')
+  
+  # Calculate a similarity metric (e.g., Adjusted Rand Index - ARI)
+  ari_value <- adjustedRandIndex(age.in$class_true, age.in$class)
+  
+  # Create a separate dataframe for the similarity metric (ARI) to be included as a single point
+  similarity_data <- data.frame(
+    class = factor(1),  # Just one "class" for the similarity metric
+    value = ari_value,
+    variable = "ARI"
+  )
+  
+  # Calculate the median `pred` for each `class`
+  class_order <- age.in %>%
+    group_by(class) %>%
+    summarise(median_pred = median(pred, na.rm = TRUE)) %>%
+    arrange(median_pred) %>%
+    pull(class)
+  
+  # Reorder the `class` factor based on the median `pred`
+  age.in$class <- factor(age.in$class, levels = class_order)
+  
+  # Calculate class sizes
+  class_sizes <- age.in %>%
+    group_by(class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, class_true, SqError, pred_true), names_to = "variable", values_to = "value")
+  
+  # Bind the ARI data to the rest of the data
+  combined_data <- bind_rows(age.in_long, similarity_data)
+  
+  # Create the boxplot with class sizes in the legend and similarity metric
+  p <- ggplot(combined_data, aes(x = class, y = value, fill = class)) +
+    geom_boxplot(data = combined_data %>% filter(variable != "ARI"), show.legend = TRUE) +  # Show legend for original boxplots
+    geom_point(data = combined_data %>% filter(variable == "ARI"), aes(x = class, y = value), color = "blue", size = 5, show.legend = FALSE) +  # No legend for ARI
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Age, Sex, DepInd, tf_pm, and ARI for Run", r),
+         x = "Class",
+         y = "Value") +
+    scale_fill_discrete(labels = class_labels) +
+    theme(legend.position = "right")  # Keep the legend on the right
+  
+  print(p)
+}
+```
+
+#1 Oct
+
+Created ridge, pr, lasso for pred amp and pred
+all under Oct 1
+//`sim_pred_amp_ridgelassogpr.R` 14667241
+//`sim_pred_ridgelassogpr.R` 14667242
+
+
+#2 Oct
+Look at Gelman-Rubin of MAP
+
+##First diagnose the MAP jump
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 10#750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_sep22_pm_sm_gpols_12init_sgld_lr99_run2_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  # scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+The jump doesn't happen instantly, but it happens in 5 steps and get stuck. This is already high lr.
+Let's look at low lr 
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 20#750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_sep22_pm_sm_gpols_12init_sgld_lr_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  # scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+Effect of jump is less visible, but lr should be low enough not to make any significant changes.
+
+diff init, high lr
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 50#750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_sep22_pm_sm_gpols_12init_sgld_lr99_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  # scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+
+##Same initialisation
+```{r}
+library(coda)
+library(mcmc)
+
+# Assuming `res.mat` is a matrix with MCMC chains as rows and iterations as columns
+runs <- c(1:10)
+num.it <- 750*4  # Number of iterations per chain (adjust based on your actual data)
+res.mat <- matrix(NA, nrow = length(runs), ncol = num.it)
+
+# Fill res.mat with the data from the files
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_sep22_pm_sm_gpols_12init_sgld_lr99_run2_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Convert res.mat to mcmc.list
+# Each row of res.mat represents an individual MCMC chain
+mcmc_chains <- lapply(1:nrow(res.mat), function(i) {
+  mcmc(res.mat[i, ])  # Convert each row (chain) to an mcmc object
+})
+
+# Combine the chains into an mcmc.list
+mcmc_list <- mcmc.list(mcmc_chains)
+r.hat <- tryCatch({
+  gelman.diag(mcmc_list)
+}, error = function(e) {
+  message("Gelman-Rubin diagnostic failed: ", e$message)
+  NULL
+})
+print(r.hat$psrf[,1])
+plot(mcmc_list)
+
+```
+All 10 chains have converged.
+
+##Different init
+```{r}
+library(coda)
+library(mcmc)
+
+# Assuming `res.mat` is a matrix with MCMC chains as rows and iterations as columns
+runs <- c(1:10)
+num.it <- 750*4  # Number of iterations per chain (adjust based on your actual data)
+res.mat <- matrix(NA, nrow = length(runs), ncol = num.it)
+
+# Fill res.mat with the data from the files
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_sep22_pm_sm_gpols_12init_sgld_lr_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Convert res.mat to mcmc.list
+# Each row of res.mat represents an individual MCMC chain
+mcmc_chains <- lapply(1:nrow(res.mat), function(i) {
+  mcmc(res.mat[i, ])  # Convert each row (chain) to an mcmc object
+})
+
+# Combine the chains into an mcmc.list
+mcmc_list <- mcmc.list(mcmc_chains)
+r.hat <- tryCatch({
+  gelman.diag(mcmc_list)
+}, error = function(e) {
+  message("Gelman-Rubin diagnostic failed: ", e$message)
+  NULL
+})
+print(r.hat$psrf[,1])
+plot(mcmc_list)
+
+```
+We observe terrible r^ here. 40
+
+try with lower lr
+
+```{r}
+library(coda)
+library(mcmc)
+
+# Assuming `res.mat` is a matrix with MCMC chains as rows and iterations as columns
+runs <- c(5,7)
+num.it <- 750*4  # Number of iterations per chain (adjust based on your actual data)
+res.mat <- matrix(NA, nrow = length(runs), ncol = num.it)
+
+# Fill res.mat with the data from the files
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_sep22_pm_sm_gpols_12init_sgld_lr_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Convert res.mat to mcmc.list
+# Each row of res.mat represents an individual MCMC chain
+mcmc_chains <- lapply(1:nrow(res.mat), function(i) {
+  mcmc(res.mat[i, ])  # Convert each row (chain) to an mcmc object
+})
+
+# Combine the chains into an mcmc.list
+mcmc_list <- mcmc.list(mcmc_chains)
+r.hat <- tryCatch({
+  gelman.diag(mcmc_list)
+}, error = function(e) {
+  message("Gelman-Rubin diagnostic failed: ", e$message)
+  NULL
+})
+print(r.hat$psrf[,1])
+plot(mcmc_list)
+
+```
+Even for the best pair with low lr (5,7), the g-r obtain 1.93 (no convergence)
+
+From this, I believe that MCMC convergence will NOT work from our parameter search as the parameters may be in different neighbourhood initially.
+
 
 
 
