@@ -1,5 +1,7 @@
 # R script
 
+#sep 22, adjusting MAP loss, deleting the term for hidden layer prior since we use lm() now
+
 
 if (!require("pacman")) {install.packages("pacman");library(pacman)}
 p_load(BayesGPfit)
@@ -22,7 +24,7 @@ print(Sys.time())
 print('############### Test Optimised ###############')
 
 
-filename <- "aug22_pm_sm_gpols_12init_sgld_lr" 
+filename <- "sep22_pm_sm_gpols_12init_sgld_lr99" 
 success.run <- 1:10
 init.num <- ifelse(JobId %in% success.run, yes = JobId, no = sample(success.run,1))
 prior.var <- 0.05 #was 0.05
@@ -31,7 +33,7 @@ prior.var <- 0.05 #was 0.05
 # start.a <- 1e-6
 # start.gamma <- 3
 # learning_rate <- start.a*(start.b+1)^(-start.gamma) #for slow decay starting less than 1 #
-learning_rate <- 1e-6
+learning_rate <- 0.99#1e-6 Change below
 
 prior.var.bias <- 1
 epoch <- 750 #was 500
@@ -178,8 +180,8 @@ res3.dat <- array(t(apply(partial.gp,MARGIN = c(1),mult.dat)), dim =c(n.mask,n.d
 for(num.lat.class.select in c(2)){
   
   prior.var <- 0.05 #was 0.05
-  # learning_rate <- 0.99 #for slow decay starting less than 1
-  learning_rate <- 1e-6
+  learning_rate <- 0.99 #for slow decay starting less than 1
+  # learning_rate <- 1e-6
   
   #Losses
   loss.train <- vector(mode = "numeric")
@@ -323,8 +325,9 @@ for(e in 1:epoch){
     temp.sum.sum.sq <- apply(theta.matrix, 1, FUN = function(x) sum(x^2))
     
     #Note wrong MAP here. I have NOT incorporated intercept
-    map.train <- c(map.train,n.train/2*log(y.sigma) +1/(2*y.sigma)*n.train*mseCpp(hs_in.pred_SOI,lognum[mini.batch$train[[b]]]) +n.mask/2*log(y.sigma) +n.mask*n.expan/2*log(y.sigma) + 1/(2*y.sigma)*sum(1/prior.var*(temp.sum.sum.sq))  +1/2*sum(c(bias)^2) )
+    # map.train <- c(map.train,n.train/2*log(y.sigma) +1/(2*y.sigma)*n.train*mseCpp(hs_in.pred_SOI,lognum[mini.batch$train[[b]]]) +n.mask/2*log(y.sigma) +n.mask*n.expan/2*log(y.sigma) + 1/(2*y.sigma)*sum(1/prior.var*(temp.sum.sum.sq))  +1/2*sum(c(bias)^2) )
     
+    map.train <- c(map.train,n.train/2*log(y.sigma) +1/(2*y.sigma)*n.train*mseCpp(hs_in.pred_SOI,lognum[mini.batch$train[[b]]]) +n.mask*n.expan/2*log(y.sigma) + 1/(2*y.sigma)*sum(1/prior.var*(temp.sum.sum.sq))  +1/2*sum(c(bias)^2) )
     
     hidden.layer.test <- apply(t(apply(res3.dat[, train.test.ind$test, ],MARGIN = 2,FUN = mult.thea,thet=theta.matrix) + bias), 2, FUN = relu)
     poly_features.test <- as.matrix(hidden.layer.test)

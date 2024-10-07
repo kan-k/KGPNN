@@ -7,6 +7,8 @@
 
 #june 13, change number of subclasses from 4 to 10 , and param search from 1000 to 500
 
+#Sep 24 added saliency
+
 
 if (!require("pacman")) {install.packages("pacman");library(pacman)}
 p_load(BayesGPfit)
@@ -29,7 +31,7 @@ print(Sys.time())
 print('############### Test Optimised ###############')
 
 
-filename <- "aug22_pm_sm_gpols_12init_bbs" 
+filename <- "sep24_pm_sm_gpols_12init_bbs" 
 success.run <- 1:10
 init.num <- ifelse(JobId %in% success.run, yes = JobId, no = sample(success.run,1))
 prior.var <- 0.05 #was 0.05
@@ -176,7 +178,7 @@ mult.thea <- function(X,theta) rowSums(X*theta)
 res3.dat <- array(t(apply(partial.gp,MARGIN = c(1),mult.dat)), dim =c(n.mask,n.dat,n.expan)) #rename res3.dat as the product of data and expansion
 
 ################################################################################################################################################
-for(num.lat.class.select in c(8,12,15)){
+for(num.lat.class.select in c(2)){
   
   prior.var <- 0.05 #was 0.05
   learning_rate <- 0.99 #for slow decay starting less than 1
@@ -425,31 +427,35 @@ for(e in 1:epoch){
   
   print(paste0("epoch: ",e," out of ",epoch, ", time taken for this epoch: ",Sys.time() -time.epoch))
   print(paste0("sigma^2: ",y.sigma))
-  # if(e %in% c(epoch)){ #300 and 500
+  if(e %in% c(epoch)){ #epoch = epoch.
+    
+    weights <- matrix(,nrow=n.mask, ncol = p.dat)
+    for(i in 1:n.mask){
+      weights[i,] <- partial.gp[i,,] %*% theta.matrix[i,]
+    }
+    salient.mat <- t(t(beta_fit$HS[1:n.mask]*weights) %*% t(apply(t(apply(res3.dat[, mini.batch$train[[b]], ],MARGIN = 2,FUN = mult.thea,thet=theta.matrix) + bias), 2, FUN = relu.prime)))
+
+    gp.mask.hs <- res3.mask
+    gp.mask.hs[gp.mask.hs!=0] <- abs(colMeans(salient.mat))
+    gp.mask.hs@datatype = 16
+    gp.mask.hs@bitpix = 32
+    writeNIfTI(gp.mask.hs,paste0('/well/nichols/users/qcv214/KGPNN/cog/viz/re_',filename,"_epoch_",e,'_mainsal_',JobId))
   #   
-  #   salient.mat <- t(t(beta_fit$HS[1:n.mask]*weights) %*% t(apply(t(t(res3.dat[train.test.ind$train, ]  %*% t(weights)) + bias), 2, FUN = relu.prime)))
-  #   
-  #   gp.mask.hs <- res3.mask
-  #   gp.mask.hs[gp.mask.hs!=0] <- abs(colMeans(salient.mat))
-  #   gp.mask.hs@datatype = 16
-  #   gp.mask.hs@bitpix = 32
-  #   writeNIfTI(gp.mask.hs,paste0('/well/nichols/users/qcv214/KGPNN/viz/re_',filename,"_epoch_",e,'_mainsal_',JobId))
   #   
   #   
+    salient.mat <- t(t(beta_fit$HS[n.mask+num.lat.class+1+(seq(n.mask)-1)*num.lat.class]*weights) %*% t(c(co.hidden.layer[,1]) * apply(t(apply(res3.dat[, mini.batch$train[[b]], ],MARGIN = 2,FUN = mult.thea,thet=theta.matrix) + bias), 2, FUN = relu.prime)))
+    gp.mask.hs <- res3.mask
+    gp.mask.hs[gp.mask.hs!=0] <- abs(colMeans(salient.mat))
+    gp.mask.hs@datatype = 16
+    gp.mask.hs@bitpix = 32
+    writeNIfTI(gp.mask.hs,paste0('/well/nichols/users/qcv214/KGPNN/cog/viz/re_',filename,"_epoch_",e,'_inter1sal_',JobId))
   #   
-  #   salient.mat <- t(t(beta_fit$HS[n.mask+num.lat.class+1+(seq(n.mask)-1)*num.lat.class]*weights) %*% t(c(co.hidden.layer[,1]) * apply(t(t(res3.dat[mini.batch$train[[b]], ]  %*% t(weights)) + bias), 2, FUN = relu.prime)))
-  #   gp.mask.hs <- res3.mask
-  #   gp.mask.hs[gp.mask.hs!=0] <- abs(colMeans(salient.mat))
-  #   gp.mask.hs@datatype = 16
-  #   gp.mask.hs@bitpix = 32
-  #   writeNIfTI(gp.mask.hs,paste0('/well/nichols/users/qcv214/KGPNN/viz/re_',filename,"_epoch_",e,'_inter1sal_',JobId))
-  #   
-  #   salient.mat <- t(t(beta_fit$HS[n.mask+num.lat.class+2+(seq(n.mask)-1)*num.lat.class]*weights) %*% t(c(co.hidden.layer[,2]) * apply(t(t(res3.dat[mini.batch$train[[b]], ]  %*% t(weights)) + bias), 2, FUN = relu.prime)))
-  #   gp.mask.hs <- res3.mask
-  #   gp.mask.hs[gp.mask.hs!=0] <- abs(colMeans(salient.mat))
-  #   gp.mask.hs@datatype = 16
-  #   gp.mask.hs@bitpix = 32
-  #   writeNIfTI(gp.mask.hs,paste0('/well/nichols/users/qcv214/KGPNN/viz/re_',filename,"_epoch_",e,'_inter2sal_',JobId))
+    salient.mat <- t(t(beta_fit$HS[n.mask+num.lat.class+2+(seq(n.mask)-1)*num.lat.class]*weights) %*% t(c(co.hidden.layer[,2]) * apply(t(apply(res3.dat[, mini.batch$train[[b]], ],MARGIN = 2,FUN = mult.thea,thet=theta.matrix) + bias), 2, FUN = relu.prime)))
+    gp.mask.hs <- res3.mask
+    gp.mask.hs[gp.mask.hs!=0] <- abs(colMeans(salient.mat))
+    gp.mask.hs@datatype = 16
+    gp.mask.hs@bitpix = 32
+    writeNIfTI(gp.mask.hs,paste0('/well/nichols/users/qcv214/KGPNN/cog/viz/re_',filename,"_epoch_",e,'_inter2sal_',JobId))
   #   
   #   salient.mat <- t(t(beta_fit$HS[n.mask+num.lat.class+3+(seq(n.mask)-1)*num.lat.class]*weights) %*% t(c(co.hidden.layer[,3]) * apply(t(t(res3.dat[mini.batch$train[[b]], ]  %*% t(weights)) + bias), 2, FUN = relu.prime)))
   #   gp.mask.hs <- res3.mask
@@ -474,7 +480,7 @@ for(e in 1:epoch){
   #   # gp.mask.hs@datatype = 16
   #   # gp.mask.hs@bitpix = 32
   #   # writeNIfTI(gp.mask.hs,paste0('/well/nichols/users/qcv214/KGPNN/viz/',filename,"_epoch_",e,'_allsal_',JobId))
-  # }
+  }
   
   #BB
   #1 Feb, change indexing (3,2) to 2,1)... it's actually wrong. I am not saving the 1st lr, so 1st-3rd lr are literally the same.
