@@ -2304,6 +2304,7 @@ aug9_pm_bi_gpols_init 4379501 ==> new
 
 #9 aug 
 ```{r}
+library(feather)
 age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
 train.test.ind <- list()
 train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x
@@ -6151,6 +6152,148 @@ ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color
   theme_minimal() +
   labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
 ```
+Look at rmse... but it's sgld
+```{r}
+library(feather)
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+train.test.ind <- list()
+train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x
+train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x
+```
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 750 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_sep22_pm_sm_gpols_12init_sgld_lr99_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.98 ,1.25) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for", Class, " Classes"), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    # ylim(0, .5) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for", Class, " Classes"), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+
+###Look at jumps of map vs rmse
+diff init, high lr
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 50#750 * 4
+runs <- c(7,9)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_sep22_pm_sm_gpols_12init_sgld_lr99_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  # scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+Look at rmse... but it's sgld
+```{r}
+library(feather)
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+train.test.ind <- list()
+train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x
+train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x
+```
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 50 
+runs <- c(7,9)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_sep22_pm_sm_gpols_12init_sgld_lr99_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(1 ,1.15) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for", Class, " Classes"), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    # ylim(0, .5) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for", Class, " Classes"), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+
 
 ##Same initialisation
 ```{r}
@@ -6260,6 +6403,2996 @@ Even for the best pair with low lr (5,7), the g-r obtain 1.93 (no convergence)
 
 From this, I believe that MCMC convergence will NOT work from our parameter search as the parameters may be in different neighbourhood initially.
 
+
+#7 Oct
+
+To observe convergence, let's try adding some noise to the initial params of run 2
+//Oct7_pm_sm_gpols_12init_sgld_lr99_run2  15918763
+
+
+#8 oct
+
+##SGLD same start with jitters
+```{r}
+library(coda)
+library(mcmc)
+
+# Assuming `res.mat` is a matrix with MCMC chains as rows and iterations as columns
+runs <- c(1:10)
+num.it <- 750*4  # Number of iterations per chain (adjust based on your actual data)
+res.mat <- matrix(NA, nrow = length(runs), ncol = num.it)
+
+# Fill res.mat with the data from the files
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_Oct7_pm_sm_gpols_12init_sgld_lr99_run2_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Convert res.mat to mcmc.list
+# Each row of res.mat represents an individual MCMC chain
+mcmc_chains <- lapply(1:nrow(res.mat), function(i) {
+  mcmc(res.mat[i, ])  # Convert each row (chain) to an mcmc object
+})
+
+# Combine the chains into an mcmc.list
+mcmc_list <- mcmc.list(mcmc_chains)
+r.hat <- tryCatch({
+  gelman.diag(mcmc_list)
+}, error = function(e) {
+  message("Gelman-Rubin diagnostic failed: ", e$message)
+  NULL
+})
+print(r.hat$psrf[,1])
+plot(mcmc_list)
+
+```
+Run 4 causes the problem - ignore it
+```{r}
+library(coda)
+library(mcmc)
+
+# Assuming `res.mat` is a matrix with MCMC chains as rows and iterations as columns
+runs <- c(1:3,5:10)
+num.it <- 750*4  # Number of iterations per chain (adjust based on your actual data)
+res.mat <- matrix(NA, nrow = length(runs), ncol = num.it)
+
+# Fill res.mat with the data from the files
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_Oct7_pm_sm_gpols_12init_sgld_lr99_run2_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Convert res.mat to mcmc.list
+# Each row of res.mat represents an individual MCMC chain
+mcmc_chains <- lapply(1:nrow(res.mat), function(i) {
+  mcmc(res.mat[i, ])  # Convert each row (chain) to an mcmc object
+})
+
+# Combine the chains into an mcmc.list
+mcmc_list <- mcmc.list(mcmc_chains)
+r.hat <- tryCatch({
+  gelman.diag(mcmc_list)
+}, error = function(e) {
+  message("Gelman-Rubin diagnostic failed: ", e$message)
+  NULL
+})
+print(r.hat$psrf[,1])
+plot(mcmc_list)
+
+```
+Look at rmse... but it's sgld
+```{r}
+library(feather)
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+train.test.ind <- list()
+train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x
+train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x
+```
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 750 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_Oct7_pm_sm_gpols_12init_sgld_lr99_run2_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.98 ,1.25) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for", Class, " Classes"), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    # ylim(0, .5) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for", Class, " Classes"), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+Plot losses
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 50#750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_Oct7_pm_sm_gpols_12init_sgld_lr99_run2_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  # scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+I did s.d. = sqrt(learning_rate/100)
+
+//oct8_pm_sm_gpols_12init_sgld_lr99_run2. 16050279 => changing s.d. to sqrt(learning_rate). changed number of epochs to 50
+
+##Large jitter
+Plot losses
+=>run 6 went nuts
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 50#750 * 4
+runs <- c(1:5,7:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct8_pm_sm_gpols_12init_sgld_lr99_run2_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  # scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+Looking at res.mat[,1:3], I think it's decent amount of noises. Though run 3 may cause a problem
+```{r}
+library(coda)
+library(mcmc)
+
+# Assuming `res.mat` is a matrix with MCMC chains as rows and iterations as columns
+runs <- c(2:5,7:10)
+num.it <- 50*4  # Number of iterations per chain (adjust based on your actual data)
+res.mat <- matrix(NA, nrow = length(runs), ncol = num.it)
+
+# Fill res.mat with the data from the files
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct8_pm_sm_gpols_12init_sgld_lr99_run2_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Convert res.mat to mcmc.list
+# Each row of res.mat represents an individual MCMC chain
+mcmc_chains <- lapply(1:nrow(res.mat), function(i) {
+  mcmc(res.mat[i, ])  # Convert each row (chain) to an mcmc object
+})
+
+# Combine the chains into an mcmc.list
+mcmc_list <- mcmc.list(mcmc_chains)
+r.hat <- tryCatch({
+  gelman.diag(mcmc_list)
+}, error = function(e) {
+  message("Gelman-Rubin diagnostic failed: ", e$message)
+  NULL
+})
+print(r.hat$psrf[,1])
+plot(mcmc_list)
+
+```
+
+#oct 9
+//oct9_pm_sm_gpols_12init_sgld_lr99_run2  16263656 => change initial noise to be median(abs(theta))/10
+No effect really, only differ by digit  
+
+//oct9_pm_sm_gpols_12init_sgld_lr99_run2 16265178 => change initial noise to be median(abs(theta))
+//oct9_pm_sm_gpols_12init_sgld_lr99_run2 16280748 => change initial noise to be median(abs(theta))^2
+##Data jitter
+Plot losses
+=>run 6 went nuts
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 10#750 * 4
+runs <- c(1:5,7:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct9_pm_sm_gpols_12init_sgld_lr99_run2_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  # scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+Still look decent
+
+
+##Jian wanna see update 
+I shop plot the loss, but need to re-run first
+###RMSE
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 100#500 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.88, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+We want to get some learning rate and get map
+
+Running
+Created `pm_sm_gpols_12init_K2.R` to correct the map and change learning of algo to 0.99/num.it
+//oct9_pm_sm_gpols_12init K2 16286693
+
+
+#10 oct
+
+##loss of...
+```{r}
+library(feather)
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+train.test.ind <- list()
+train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x
+train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x
+```
+###Ridge
+```{r}
+#lasso
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_lasso_noscale_",i,".csv"))))
+}
+(l.train <- quantile(hs.int[,5],c(0.5)))
+(l.test <-quantile(hs.int[,6],c(0.5)))
+
+#ridge
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_ridge_noscale_",i,".csv"))))
+}
+(r.train <- quantile(hs.int[,5],c(0.5)))
+(r.test <-quantile(hs.int[,6],c(0.5)))
+
+#ridge
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpr_noscale_",i,".csv"))))
+}
+(gpr.train <- quantile(hs.int[,5],c(0.5)))
+(gpr.test <-quantile(hs.int[,6],c(0.5)))
+```
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 100#500 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct9_pm_sm_gpols_12init_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.88, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+There seems to be no learning
+
+Let's try learning rate of 1e-4, im afraid it wont work either.
+//oct10_pm_sm_gpols_12init  16356966
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 10#500 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct10_pm_sm_gpols_12init_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.88, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+still no learning
+
+##Look at map
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 500*4#750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct10_pm_sm_gpols_12init_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  # scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+Loss has weird update.
+
+
+
+Maybe the GP-Linear really doesn't work
+
+let's see gpgp with dec learning rate
+It's either the GP transform first layer don't work at all
+OR
+It's not applicable to pair matching
+
+created
+`pm_sm_gpgp_12init_K2.R` => GPGP with decreasing lr
+//oct11_pm_sm_gpgp_12init  16738874
+
+#11 Oct
+
+##GPGP
+Loss
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 5#500*4#750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct11_pm_sm_gpgp_12init_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  # scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+loss rose so sharply
+
+RMSE
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 500*4#500 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct11_pm_sm_gpgp_12init_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.88, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+
+look at sigma
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 5#500*4#750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct11_pm_sm_gpgp_12init_K2_sigma__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)#[,1:5]  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  # scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+this is exact same plot as rising loss
+      map.train <- c(map.train,n.train/2*log(y.sigma) +1/(2*y.sigma)*n.train*mseCpp(hs_in.pred_SOI,lognum[mini.batch$train[[b]]]) +l.expan/2*log(y.sigma) + 1/(2*y.sigma)*(1/1)*sum((hs_fit_SOI$post_mean$betacoef[2:(l.expan+1)])^2) + 1/2*l.bias^2)
+```{r}
+2000/2*log(200000) #this is 12k
+1/(2*200000) #this is 2.5e-6
+```
+
+I can actually see which component is large
+
+
+
+seems like there is no learning.
+**I think the loss of gpgp currently doesn't contain first level loss, but it's still huge. let's assess this
+
+I think 2 things to assess
+1. does gpnn learn in this?
+  //oct12_pm_sm_gpnn_12init 16887303
+2. Does gpgp or gp ols also not learn in age prediction 
+  2.1 actually first let's look at the plot of log(sigma) and 1/2sigma which i already
+      let's also try separating Posterior into Likelihood and Prior
+      Also incorporate likelihood and prior in `pm_sm_gpgp_12init_K2.R`
+      //oct12_pm_sm_gpgp_12init 16890906 => 50 epochs with likelihood and prior
+
+
+##GPNN
+Loss
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 5#500*4#750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct12_pm_sm_gpnn_12init_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  # scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+it's huge
+look at sigma
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 15#500*4#750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct12_pm_sm_gpnn_12init_K2_sigma__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)#[,1:5]  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  # scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+So sigma is only 6k but loss is 8 million.
+
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 100#500 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct12_pm_sm_gpnn_12init_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.88, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+No learning isible for this either. But in bbs rmse should get to 0? 
+Let me do it with higher lr
+
+
+##GPGP
+look at sigma
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 5#500*4#750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct12_pm_sm_gpgp_12init_K2_sigma__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)#[,1:5]  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  # scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+look at map
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 5#500*4#750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct12_pm_sm_gpgp_12init_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)#[,1:5]  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  # scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+look at likelihood
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 5#500*4#750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct12_pm_sm_gpgp_12init_K2_likelihood__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)#[,1:5]  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  # scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+look at prior
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 5#500*4#750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct12_pm_sm_gpgp_12init_K2_prior__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)#[,1:5]  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  # scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+seems like it's all updating the other way. likelihood should be small tho..
+
+3 things to try about this
+1. change the sign of update
+    //oct12_pm_sm_gpgp_12init_sign_switch 16896004
+2. cap y.sigma
+3. turn y.sigma into estimation rather than gradient update => either prediction or keep using the estimated train (ie no update)
+    //oct12_pm_sm_gpgp_12init_sigma_fixed 16895954
+
+#13 Oct
+
+##GPNN
+GPNN with higher learning rate
+oct13_pm_sm_gpnn_12init  16896857 ==> lr = 0.99
+
+
+##GPGP change sign
+look at sigma
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 5#500*4#750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct12_pm_sm_gpgp_12init_sign_switch_K2_sigma__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)#[,1:5]  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  # scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+look at map
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 5#500*4#750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct12_pm_sm_gpgp_12init_sign_switch_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)#[,1:5]  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  # scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+look at likelihood
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 5#500*4#750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct12_pm_sm_gpgp_12init_sign_switch_K2_likelihood__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)#[,1:5]  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  # scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+look at prior
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 5#500*4#750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct12_pm_sm_gpgp_12init_sign_switch_K2_prior__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)#[,1:5]  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  # scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+nothing is showing? It's just NA.
+I think it comes from the fact that sigma is negative
+
+look at rmse
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 100#500 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct12_pm_sm_gpgp_12init_sign_switch_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.88, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+So rmse is still good even with *WRONG* side of update?
+
+In this case, I am guessing it must be the final layer that dominates this learning.
+**Very important **
+
+##GPGP fixed sigma
+look at sigma
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 200#500*4#750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct12_pm_sm_gpgp_12init_sigma_fixed_K2_sigma__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)#[,1:5]  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  # scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+look at map
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 200#500*4#750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct12_pm_sm_gpgp_12init_sigma_fixed_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)#[,1:5]  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  # scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+look at likelihood
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 200#500*4#750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct12_pm_sm_gpgp_12init_sigma_fixed_K2_likelihood__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)#[,1:5]  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  # scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+look at prior
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 200#500*4#750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct12_pm_sm_gpgp_12init_sigma_fixed_K2_prior__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)#[,1:5]  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  # scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+look at rmse
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 200#500 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct12_pm_sm_gpgp_12init_sigma_fixed_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.88, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+
+Here RMSE is fine as well.
+
+##Conclusion so far is 
+1. the architecture doesn't work well regardless of right or wrong update
+  1.1 some runs still seem better than others?
+2. Most likely pm task may be too difficult
+
+Let's go back to modelling age to check if loss and RMSE is decreasing
+Created 
+`age_sm_gpnn_12init_K2.R` oct13_age_sm_gpnn_12init 17096057 => i accidentally saved it to `oct12_pm_sm_gpnn_12init` with 500 epochs..
+`age_sm_gpgp_12init_K2.R` oct13_age_sm_gpgp_12init 17096077
+
+
+#14 Oct
+
+##Look at modelling age 
+
+###GPNN
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 400#500 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct12_pm_sm_gpnn_12init_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    # geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    # geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    # geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$age[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    # ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    # geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    # geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    # geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$age[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    # ylim(0.88, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+
+Update only happen like 1-2 iteations then stuck at much lower than s.d., but the "much lower" is context-based. 
+I will run it again
+//oct14_age_sm_gpnn_12init 17100372 => 50 epochs, lr = 1e-2 and decreasing
+
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 100#500 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct14_age_sm_gpnn_12init_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    # geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    # geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    # geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$age[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    # ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    # geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    # geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    # geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$age[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    # ylim(0.88, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+This is saying that learning rate is too small.
+
+How about fixing lr to not be decreasing at all let's try lr = 0.3 and fix that
+//oct14_age_sm_gpnn_12init_fixlr 17167270
+
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 200#500 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct14_age_sm_gpnn_12init_fixlr_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    # geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    # geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    # geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$age[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 10)) +
+    # ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    # geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    # geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    # geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$age[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 10)) +
+    # ylim(0.88, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+Here works fine!!!!
+
+
+For lr = 0.99
+look at losses
+look at sigma
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 100#500*4#750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct12_pm_sm_gpnn_12init_K2_sigma__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)#[,1:5]  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  # scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+look at map
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 100#500*4#750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct12_pm_sm_gpnn_12init_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)#[,1:5]  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  # scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+
+
+###GPGP
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 400#500 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct13_age_sm_gpgp_12init_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    # geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    # geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    # geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$age[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.8, 15) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    # geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    # geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    # geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$age[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.8, 8) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+we kinda see learning here?
+since gpnn, age modelling using fixed lr, work, let's try here.
+
+//oct14_age_sm_gpgp_12init_fixlr  17169779
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 200#500 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct14_age_sm_gpgp_12init_fixlr_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    # geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    # geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    # geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$age[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 10)) +
+    ylim(4, 15) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    # geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    # geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    # geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$age[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 10)) +
+    ylim(4, 8) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+so yes, there is learning, up until certain points before it gets worse
+
+
+so let's run gp-ols like this?
+
+oct14_age_sm_gpols_12init_fixlr3e1 17370798
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 200#500 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct14_age_sm_gpols_12init_fixlr3e1_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    # geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    # geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    # geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$age[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 40)) +
+    ylim(4, 8) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    # geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    # geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    # geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$age[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 40)) +
+    ylim(4, 8) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+
+
+
+
+
+##Pair Matching
+//oct14_pm_sm_gpnn_12init_fixlr 17171909 => lr is fixed at 0.1
+//oct14_pm_sm_gpols_12init_fixlr 17176320 => lr is fixed at 0.1
+//oct14_pm_sm_gpgp_12init_fixlr 17176554 => lr is fixed at 0.3
+
+###GPGP
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 200#500 * 4
+runs <- c(1:8)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct14_pm_sm_gpgp_12init_fixlr_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 10)) +
+    ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 10)) +
+    ylim(0.88, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+let's try reducing lr
+
+###GP-OLS
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 200#500 * 4
+runs <- c(1:8)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct14_pm_sm_gpols_12init_fixlr_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 10)) +
+    ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 10)) +
+    ylim(0.88, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+
+
+###GPNN
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 200#500 * 4
+runs <- c(1:8)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct14_pm_sm_gpnn_12init_fixlr_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.88, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+so maybe learning rate should be smaller?
+
+//oct14_pm_sm_gpnn_12init_fixlr1e2 17178654 => change learning rate from 0.1 to 0.01
+//oct14_pm_sm_gpgp_12init_fixlr1e2  17181573 => change learning rate from 0.3 to 0.01
+//oct14_pm_sm_gpols_12init_fixlr1e2 17181583 => change learning rate from 0.1 to 0.01
+
+###GPGP
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 200#500 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct14_pm_sm_gpgp_12init_fixlr1e2_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.88, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+###GPNN
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 200#500 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct14_pm_sm_gpnn_12init_fixlr1e2_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.88, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+Cannot tell
+
+
+###GPNN
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 200#500 * 4
+runs <- c(1:8)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct14_pm_sm_gpnn_12init_fixlr1e2_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.88, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+Maybe lr too small?
+//oct14_pm_sm_gpnn_12init_fixlr6e2 17181699
+
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 200#500 * 4
+runs <- c(1:8)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct14_pm_sm_gpnn_12init_fixlr6e2_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 10)) +
+    ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 10)) +
+    ylim(0.88, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+
+let's do 3e2 for both gpgp and gpnn 
+oct14_pm_sm_gpnn_12init_fixlr3e2 17192914
+//oct14_pm_sm_gpgp_12init_fixlr3e2 17192916
+//oct14_pm_sm_gpols_12init_fixlr3e2 17194188
+
+```{r}
+library(feather)
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+train.test.ind <- list()
+train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x
+train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x
+```
+###Ridge
+```{r}
+#lasso
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_lasso_noscale_",i,".csv"))))
+}
+(l.train <- quantile(hs.int[,5],c(0.5)))
+(l.test <-quantile(hs.int[,6],c(0.5)))
+
+#ridge
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_ridge_noscale_",i,".csv"))))
+}
+(r.train <- quantile(hs.int[,5],c(0.5)))
+(r.test <-quantile(hs.int[,6],c(0.5)))
+
+#ridge
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpr_noscale_",i,".csv"))))
+}
+(gpr.train <- quantile(hs.int[,5],c(0.5)))
+(gpr.test <-quantile(hs.int[,6],c(0.5)))
+```
+###GPGP
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 200#500 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct14_pm_sm_gpgp_12init_fixlr3e2_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 10)) +
+    ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 10)) +
+    ylim(0.89, 1.05) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 200  # Number of iterations
+runs <- c(1:10)
+
+for(Class in num.class) {
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs) {
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct14_pm_sm_gpgp_12init_fixlr1e2_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  ### Test RMSE ###
+  # Calculate the 25th percentile for each column (iteration) for the test data (res.mat[2,,])
+  test_percentile_25 <- apply(sqrt(res.mat[2,,]), 2, function(x) quantile(x, 0.25))
+  
+  # Prepare the data for plotting
+  resdat_test <- data.frame(
+    Iteration = 1:num.it,
+    Percentile25 = test_percentile_25
+  )
+  
+  # Create the test plot using the 25th percentile
+  test_plot <- ggplot(resdat_test, aes(x = Iteration, y = Percentile25)) +
+    geom_line(color = "blue") +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(resdat_test$Iteration), by = 10)) +
+    ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE (25th Percentile) for ", Class," Classes"), 
+         x = "Iterations", y = "25th Percentile RMSE", color = "Reference Lines")
+  
+  print(test_plot)  # Print the Test RMSE plot
+
+  ### Train RMSE ###
+  # Calculate the 25th percentile for each column (iteration) for the train data (res.mat[1,,])
+  train_percentile_25 <- apply(sqrt(res.mat[1,,]), 2, function(x) quantile(x, 0.25))
+  
+  # Prepare the data for plotting
+  resdat_train <- data.frame(
+    Iteration = 1:num.it,
+    Percentile25 = train_percentile_25
+  )
+  
+  # Create the train plot using the 25th percentile
+  train_plot <- ggplot(resdat_train, aes(x = Iteration, y = Percentile25)) +
+    geom_line(color = "red") +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(resdat_train$Iteration), by = 10)) +
+    ylim(0.89, 1.05) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE (25th Percentile) for ", Class," Classes"), 
+         x = "Iterations", y = "25th Percentile RMSE", color = "Reference Lines")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+Learning is visible at 1e2, on test data here.
+
+
+###GPOLS
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 400#500 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct14_pm_sm_gpols_12init_fixlr3e2_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 40)) +
+    ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 40)) +
+    ylim(0.89, 1.05) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 400#500 * 4
+runs <- c(2,9,10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct14_pm_sm_gpols_12init_fixlr3e2_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 40)) +
+    ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 40)) +
+    ylim(0.89, 1.05) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+
+Maybe it needs to be run for longer
+//oct14_pm_sm_gpols_12init_fixlr3e2  17201155
+
+####25th percentile
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 400  # Number of iterations
+runs <- c(1:10)
+
+for(Class in num.class) {
+  
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct14_pm_sm_gpols_12init_fixlr3e2_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  ### Test RMSE ###
+  # Calculate the 25th percentile for each column (iteration) for the test data (res.mat[2,,])
+  test_percentile_25 <- apply(sqrt(res.mat[2,,]), 2, function(x) quantile(x, 0.25))
+  
+  # Prepare the data for plotting
+  resdat_test <- data.frame(
+    Iteration = 1:num.it,
+    Percentile25 = test_percentile_25
+  )
+  
+  # Create the test plot using the 25th percentile
+  test_plot <- ggplot(resdat_test, aes(x = Iteration, y = Percentile25)) +
+    geom_line(color = "blue") +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(resdat_test$Iteration), by = 40)) +
+    ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE (25th Percentile) for ", Class," Classes"), 
+         x = "Iterations", y = "25th Percentile RMSE", color = "Reference Lines")
+  
+  print(test_plot)  # Print the Test RMSE plot
+
+  ### Train RMSE ###
+  # Calculate the 25th percentile for each column (iteration) for the train data (res.mat[1,,])
+  train_percentile_25 <- apply(sqrt(res.mat[1,,]), 2, function(x) quantile(x, 0.25))
+  
+  # Prepare the data for plotting
+  resdat_train <- data.frame(
+    Iteration = 1:num.it,
+    Percentile25 = train_percentile_25
+  )
+  
+  # Create the train plot using the 25th percentile
+  train_plot <- ggplot(resdat_train, aes(x = Iteration, y = Percentile25)) +
+    geom_line(color = "red") +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(resdat_train$Iteration), by = 40)) +
+    ylim(0.89, 1.05) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE (25th Percentile) for ", Class," Classes"), 
+         x = "Iterations", y = "25th Percentile RMSE", color = "Reference Lines")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+look at map
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 200#500*4#750 * 4
+runs <- c(1:10)
+res.mat <- matrix(,nrow = length(runs), ncol = num.it)
+for(i in runs){
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct14_pm_sm_gpols_12init_fixlr3e2_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE
+resdat <- as.data.frame(res.mat)#[,1:5]  # Use second row of res.mat (Test RMSE)
+colnames(resdat) <- 1:ncol(resdat)
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  # scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 400  # Total number of iterations
+runs <- c(1:10)
+res.mat <- matrix(, nrow = length(runs), ncol = num.it)
+
+for (i in runs) {
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct14_pm_sm_gpols_12init_fixlr3e2_K2_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE for iterations 10 to 400
+resdat <- as.data.frame(res.mat)[, 10:400]  # Use iterations 10 to 400
+colnames(resdat) <- 10:400  # Update column names to reflect the actual iteration numbers
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  scale_x_continuous(breaks = seq(10, 400, by = 50), limits = c(10, 400)) +  # Set x-axis from 10 to 400 with breaks every 50
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+
+
+
+###GPNN
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 200#500 * 4
+runs <- c(1:4)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct14_pm_sm_gpnn_12init_fixlr3e2_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 10)) +
+    ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 10)) +
+    # ylim(0.89, 1.05) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+Effect of overfitting can somewhat be observed
+
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 200  # Number of iterations
+runs <- c(1:4)
+
+for(Class in num.class) {
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs) {
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct14_pm_sm_gpnn_12init_fixlr3e2_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  ### Test RMSE ###
+  # Calculate the 25th percentile for each column (iteration) for the test data (res.mat[2,,])
+  test_percentile_25 <- apply(sqrt(res.mat[2,,]), 2, function(x) quantile(x, 0.25))
+  
+  # Prepare the data for plotting
+  resdat_test <- data.frame(
+    Iteration = 1:num.it,
+    Percentile25 = test_percentile_25
+  )
+  
+  # Create the test plot using the 25th percentile
+  test_plot <- ggplot(resdat_test, aes(x = Iteration, y = Percentile25)) +
+    geom_line(color = "blue") +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, num.it, by = 10)) +
+    ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE (25th Percentile) for ", Class," Classes"), 
+         x = "Iterations", y = "25th Percentile RMSE", color = "Reference Lines")
+  
+  print(test_plot)  # Print the Test RMSE plot
+
+  ### Train RMSE ###
+  # Calculate the 25th percentile for each column (iteration) for the train data (res.mat[1,,])
+  train_percentile_25 <- apply(sqrt(res.mat[1,,]), 2, function(x) quantile(x, 0.25))
+  
+  # Prepare the data for plotting
+  resdat_train <- data.frame(
+    Iteration = 1:num.it,
+    Percentile25 = train_percentile_25
+  )
+  
+  # Create the train plot using the 25th percentile
+  train_plot <- ggplot(resdat_train, aes(x = Iteration, y = Percentile25)) +
+    geom_line(color = "red") +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, num.it, by = 10)) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE (25th Percentile) for ", Class," Classes"), 
+         x = "Iterations", y = "25th Percentile RMSE", color = "Reference Lines")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+
+//oct14_pm_sm_gpols_12init_fixlr0. 17205167
+
+
+What happened if i put learning rate = 0? test rmse should be flat and training should be somewhat random from random minibatches
+
+
+#15 Oct
+
+##lr = 0
+
+###GPOLS
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 12#500 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct14_pm_sm_gpols_12init_fixlr0_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 4)) +
+    ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 4)) +
+    ylim(0.89, 1.05) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+It's not a cycle.
+==> I think it's because the last layer is not gradient-update, but rather model fitting. So changing minibatches data will change this model fitting, leading to different results.
+
+
+##For looking at losses, it should be observed after a few burn-ins
+
+##Observe predictions vs true for pm_gp => do this for bbs
+###gpols bbs
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 500 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.88, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 500 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  # Test RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  test_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    # Add annotations for each horizontal line
+    annotate("text", x = 0, y = r.test + 0.001, label = paste("Ridge:", round(r.test, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = l.test + 0.001, label = paste("Lasso:", round(l.test, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = gpr.test + 0.001, label = paste("GPR:", round(gpr.test, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = sd(age_tab$pm_tf[train.test.ind$test]) + 0.001, label = paste("sd response:", round(sd(age_tab$pm_tf[train.test.ind$test]), 4)), hjust = 0, vjust = -0.5, color = "black") +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.99, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  # Train RMSE plot
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+  resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+  
+  train_plot <- ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+    geom_line() +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    # Add annotations for each horizontal line
+    annotate("text", x = 0, y = r.train + 0.001, label = paste("Ridge:", round(r.train, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = l.train + 0.001, label = paste("Lasso:", round(l.train, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = gpr.train + 0.001, label = paste("GPR:", round(gpr.train, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = sd(age_tab$pm_tf[train.test.ind$train]) + 0.001, label = paste("sd response:", round(sd(age_tab$pm_tf[train.test.ind$train]), 4)), hjust = 0, vjust = -0.5, color = "black") +
+    scale_x_continuous(breaks = seq(0, max(as.numeric(resdat_long$column)), by = 500)) +
+    ylim(0.88, 1.1) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE for Class", Class), x = "Iterations", y = "Value", color = "Run number")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+
+
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 500 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  ### Test RMSE ###
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))  # Test RMSE
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+
+  # Calculate the 25th percentile for each column
+  test_percentile_25 <- apply(sqrt(res.mat[2,,]), 2, function(x) quantile(x, 0))
+  
+  # Prepare the data for plotting
+  resdat_test <- data.frame(
+    Iteration = 1:num.it,
+    Percentile25 = test_percentile_25
+  )
+  
+  # Create the test plot using the 25th percentile
+  test_plot <- ggplot(resdat_test, aes(x = Iteration, y = Percentile25)) +
+    geom_line(color = "blue") +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    # Add annotations for each horizontal line
+    annotate("text", x = 0, y = r.test + 0.001, label = paste("Ridge:", round(r.test, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = l.test + 0.001, label = paste("Lasso:", round(l.test, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = gpr.test + 0.001, label = paste("GPR:", round(gpr.test, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = sd(age_tab$pm_tf[train.test.ind$test]) + 0.001, label = paste("sd response:", round(sd(age_tab$pm_tf[train.test.ind$test]), 4)), hjust = 0, vjust = -0.5, color = "black") +
+    scale_x_continuous(breaks = seq(0, num.it, by = 500)) +
+    ylim(1.03, 1.07) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE (0th Percentile) for ", Class," Classes"), 
+         x = "Iterations", y = "0th Percentile RMSE", color = "Reference Lines")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  ### Train RMSE ###
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))  # Train RMSE
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+
+  # Calculate the 25th percentile for each column
+  train_percentile_25 <- apply(sqrt(res.mat[1,,]), 2, function(x) quantile(x, 0))
+  
+  # Prepare the data for plotting
+  resdat_train <- data.frame(
+    Iteration = 1:num.it,
+    Percentile25 = train_percentile_25
+  )
+  
+  # Create the train plot using the 25th percentile
+  train_plot <- ggplot(resdat_train, aes(x = Iteration, y = Percentile25)) +
+    geom_line(color = "red") +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    # Add annotations for each horizontal line
+    annotate("text", x = 0, y = r.train + 0.001, label = paste("Ridge:", round(r.train, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = l.train + 0.001, label = paste("Lasso:", round(l.train, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = gpr.train + 0.001, label = paste("GPR:", round(gpr.train, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = sd(age_tab$pm_tf[train.test.ind$train]) + 0.001, label = paste("sd response:", round(sd(age_tab$pm_tf[train.test.ind$train]), 4)), hjust = 0, vjust = -0.5, color = "black") +
+    scale_x_continuous(breaks = seq(0, num.it, by = 500)) +
+    ylim(0.88, 1.05) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE (0th Percentile) for ", Class," Classes"), 
+         x = "Iterations", y = "0th Percentile RMSE", color = "Reference Lines")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+
+Let's look at the class of K = 2
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)  # Ensure this package is installed for reading feather files
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(1:10)
+
+for (r in success.run) {
+  # Load and process data
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K2_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  
+  # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pm_tf')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pm_tf)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('age', 'sex', 'DepInd', 'pm_tf', 'pred', 'SqError', 'class')
+  
+  # Calculate the median `pred` for each `class`
+  class_order <- age.in %>%
+    group_by(class) %>%
+    summarise(median_pred = median(pred, na.rm = TRUE)) %>%
+    arrange(median_pred) %>%
+    pull(class)
+  
+  # Reorder the `class` factor based on the median `pred`
+  age.in$class <- factor(age.in$class, levels = class_order)
+  
+  # Calculate class sizes
+  class_sizes <- age.in %>%
+    group_by(class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, SqError, pm_tf), names_to = "variable", values_to = "value")
+  
+  # Create the boxplot with class sizes in the legend
+  p <- ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+    geom_boxplot() +
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Age, Sex, DepInd, tf_pm, Labeled by Class for Run", r),
+         x = "Class",
+         y = "Value") +
+    scale_fill_discrete(labels = class_labels)
+  
+  print(p)
+}
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(feather)
+library(patchwork)  # For combining plots
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(1:10)
+
+for (r in success.run) {
+  # Load and process data
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K2_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+
+  # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pm_tf')]
+  age.in <- cbind(age.in, dat.in$pred, (age.in$pm_tf - dat.in$pred), as.factor(dat.in$class))
+  colnames(age.in) <- c('age', 'sex', 'DepInd', 'pm_tf', 'pred', 'residual', 'class')
+
+  ### 1. Scatter Plot: pm_tf (Truth) vs pred (Fitted)
+  truth_vs_fitted_plot <- ggplot(age.in, aes(x = pred, y = pm_tf, color = class)) +
+    geom_point(alpha = 0.7) +  # Use points with slight transparency
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black") +  # Add a y=x line
+    scale_color_manual(values = c("1" = "darkblue", "2" = "darkred")) +  # Dark blue for Class 1, Dark red for Class 2
+    theme_minimal() +
+    labs(title = "Fitted vs Truth", x = "Fitted Values (pred)", y = "True Values (pm_tf)", color = "Class") +
+    theme(legend.position = "right")  # Show legend on the right
+
+  ### 2. Scatter Plot: SqError vs pred (Fitted)
+  sqerror_vs_fitted_plot <- ggplot(age.in, aes(x = pred, y = residual, color = class)) +
+    geom_point(alpha = 0.7) +  # Use points with slight transparency
+    scale_color_manual(values = c("1" = "darkblue", "2" = "darkred")) +  # Dark blue for Class 1, Dark red for Class 2
+    theme_minimal() +
+    labs(title = "Residual vs Fitted", x = "Fitted Values (pred)", y = "y-y^", color = "Class") +
+    theme(legend.position = "right")  # Show legend on the right
+
+  ### Combine the two plots using patchwork
+  combined_plot <- truth_vs_fitted_plot + sqerror_vs_fitted_plot + 
+    plot_layout(ncol = 2) +  # Arrange the two plots side by side
+    plot_annotation(title = paste("Scatter Plots for Run", r))  # Add a main title for the combined plot
+
+  print(combined_plot)
+}
+```
 
 
 
