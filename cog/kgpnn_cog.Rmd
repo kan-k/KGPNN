@@ -1761,7 +1761,7 @@ test_transformed <- apply_prelearned_transformation(test_lognum, train_transform
 
 # Add the transformed test values back to the dataframe
 age_tab_dmn$pm_tf[test_indices] <- test_transformed
-write_feather(age_tab_dmn, '/well/nichols/users/qcv214/KGPNN/cog/age_dmn_sex_strat.feather')
+# write_feather(age_tab_dmn, '/well/nichols/users/qcv214/KGPNN/cog/age_dmn_sex_strat.feather')
 ```
 
 ```{r}
@@ -1835,7 +1835,7 @@ Look at run 3,5,6,10
 
 Maybe try GPNN GP GP???
 
-//[1,4,6:10] july26_pm_sm_gpgp_12init 2600564 ==> takes 2 hours (cpmpared to 1 hours of gpols)
+//[1,4,6:10] july26_pm_sm_gpgp_12init 2600564 ==> takes 2 hours (compared to 1 hours of gpols)
 
 ##gpgp param search
 ```{r}
@@ -9196,7 +9196,7 @@ for(Class in num.class){
   print(train_plot)  # Print the Train RMSE plot
 }
 ```
-
+Run 2 achieved lowest.
 
 ```{r}
 library(ggplot2)
@@ -9282,6 +9282,13 @@ for(Class in num.class){
   print(train_plot)  # Print the Train RMSE plot
 }
 ```
+Locating the minimum
+```{r}
+which.min(resdat_test[,2])
+resdat_test[798,2]
+```
+Lowest point here is the same as Run 2.
+
 
 Let's look at the class of K = 2
 ```{r}
@@ -9393,6 +9400,660 @@ for (r in success.run) {
   print(combined_plot)
 }
 ```
+
+
+
+#17 Oct
+
+##GP-OLS results
+Look at R^2
+```{r}
+library(feather)
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+train.test.ind <- list()
+train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x
+train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x
+```
+###Ridge
+```{r}
+#lasso
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_lasso_noscale_",i,".csv"))))
+}
+(l.train <- quantile(hs.int[,1],c(0.5)))
+(l.test <-quantile(hs.int[,3],c(0.5)))
+
+#ridge
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_ridge_noscale_",i,".csv"))))
+}
+(r.train <- quantile(hs.int[,1],c(0.5)))
+(r.test <-quantile(hs.int[,3],c(0.5)))
+
+#ridge
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpr_noscale_",i,".csv"))))
+}
+(gpr.train <- quantile(hs.int[,1],c(0.5)))
+(gpr.test <-quantile(hs.int[,3],c(0.5)))
+```
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 500 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K", Class, "_rsq__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  ### Test RMSE ###
+  resdat <- as.data.frame((res.mat[2,,]))  # Test RMSE
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+
+  # Calculate the 25th percentile for each column
+  test_percentile_25 <- apply((res.mat[2,,]), 2, function(x) quantile(x, 1))
+  
+  # Prepare the data for plotting
+  resdat_test <- data.frame(
+    Iteration = 1:num.it,
+    Percentile25 = test_percentile_25
+  )
+  
+  # Create the test plot using the 25th percentile
+  test_plot <- ggplot(resdat_test, aes(x = Iteration, y = Percentile25)) +
+    geom_line(color = "blue") +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    # Add annotations for each horizontal line
+    annotate("text", x = 0, y = r.test + 0.001, label = paste("Ridge:", round(r.test, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = l.test + 0.001, label = paste("Lasso:", round(l.test, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = gpr.test + 0.001, label = paste("GPR:", round(gpr.test, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = sd(age_tab$pm_tf[train.test.ind$test]) + 0.001, label = paste("sd response:", round(sd(age_tab$pm_tf[train.test.ind$test]), 4)), hjust = 0, vjust = -0.5, color = "black") +
+    scale_x_continuous(breaks = seq(0, num.it, by = 500)) +
+    ylim(-1, 6) +
+    theme_minimal() +
+    labs(title = paste("Test R^2 (100th Percentile) for ", Class," Classes"), 
+         x = "Iterations", y = "100th Percentile R^2", color = "Reference Lines")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  ### Train RMSE ###
+  resdat <- as.data.frame((res.mat[1,,]))  # Train RMSE
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+
+  # Calculate the 25th percentile for each column
+  train_percentile_25 <- apply((res.mat[1,,]), 2, function(x) quantile(x, 1))
+  
+  # Prepare the data for plotting
+  resdat_train <- data.frame(
+    Iteration = 1:num.it,
+    Percentile25 = train_percentile_25
+  )
+  
+  # Create the train plot using the 25th percentile
+  train_plot <- ggplot(resdat_train, aes(x = Iteration, y = Percentile25)) +
+    geom_line(color = "red") +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    # Add annotations for each horizontal line
+    annotate("text", x = 0, y = r.train + 0.001, label = paste("Ridge:", round(r.train, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = l.train + 0.001, label = paste("Lasso:", round(l.train, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = gpr.train + 0.001, label = paste("GPR:", round(gpr.train, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = sd(age_tab$pm_tf[train.test.ind$train]) + 0.001, label = paste("sd response:", round(sd(age_tab$pm_tf[train.test.ind$train]), 4)), hjust = 0, vjust = -0.5, color = "black") +
+    scale_x_continuous(breaks = seq(0, num.it, by = 500)) +
+    ylim(-1, 20) +
+    theme_minimal() +
+    labs(title = paste("Train R^2 (100th Percentile) for ", Class," Classes"), 
+         x = "Iterations", y = "100th Percentile R^2", color = "Reference Lines")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+Locating the max r-squared
+```{r}
+which.max(resdat_test[,2])
+resdat_test[798,2]
+```
+
+
+#21 Oct
+
+## Increasing held-out samples
+Expanding held-out to assess the preditability of our model (maybe the model only perform well on the stratified held-out data)
+to do
+1. Record the best params on the validation set and use those to make predictions ==> note that this mean I also have to record the hidden layer params, otherwise fitting models on full data will be different.
+  modified `pm_sm_gpols_12init_K_bbs.R` oct21_pm_sm_gpols_12init_bbs 18835952
+
+2. Compare the above against e.g. params at not the best result (e.g. at final iteration)
+  result right now include 2 class gpols, then 3 class of other algo, then bimodal and data themselves
+
+
+##Summary table of everything so far
+methd | best rmse (train test) | r-square | SGLD? | num param | run time
+
+###data and linear mod
+```{r}
+library(feather)
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+train.test.ind <- list()
+train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x
+train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x
+print(sd(age_tab$pm_tf[train.test.ind$train]))
+print(sd(age_tab$pm_tf[train.test.ind$test]))
+```
+```{r}
+#lasso
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_lasso_noscale_",i,".csv"))))
+}
+print(apply(hs.int[,c(1,3,5,6)],MARGIN=2,FUN = quantile,c(0.5)))
+
+#ridge
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_ridge_noscale_",i,".csv"))))
+}
+print(apply(hs.int[,c(1,3,5,6)],MARGIN=2,FUN = quantile,c(0.5)))
+
+
+#ridge
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpr_noscale_",i,".csv"))))
+}
+print(apply(hs.int[,c(1,3,5,6)],MARGIN=2,FUN = quantile,c(0.5)))
+
+```
+```{r}
+# Initialize a matrix for storing the results
+results <- matrix(NA, nrow = 3, ncol = 5)
+colnames(results) <- c("Training RMSE", "Test RMSE" ,"Training R^2", "Test R^2","non-zero Var")
+rownames(results) <- c("Lasso", "Ridge", "GPR")
+
+# Lasso Results
+runs.hs <- 1:10
+hs.int <- matrix(, nrow = length(runs.hs), ncol = 13)
+for(i in runs.hs){
+  hs.int[which(i == runs.hs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_lasso_noscale_", i, ".csv"))))
+}
+lasso_quantiles <- apply(hs.int[, c(5, 6,1,3,13)], MARGIN = 2, FUN = quantile, c(0.5))
+results["Lasso", ] <- lasso_quantiles
+
+# Ridge Results
+hs.int <- matrix(, nrow = length(runs.hs), ncol = 13)
+for(i in runs.hs){
+  hs.int[which(i == runs.hs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_ridge_noscale_", i, ".csv"))))
+}
+ridge_quantiles <- apply(hs.int[, c(5, 6,1,3,13)], MARGIN = 2, FUN = quantile, c(0.5))
+results["Ridge", ] <- ridge_quantiles
+
+# GPR Results
+hs.int <- matrix(, nrow = length(runs.hs), ncol = 13)
+for(i in runs.hs){
+  hs.int[which(i == runs.hs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpr_noscale_", i, ".csv"))))
+}
+gpr_quantiles <- apply(hs.int[, c(5, 6,1,3,13)], MARGIN = 2, FUN = quantile, c(0.5))
+results["GPR", ] <- gpr_quantiles
+
+# Convert to a data frame and print the table
+results_df <- as.data.frame(results)
+results_df$Method <- rownames(results_df)
+
+# Reorder columns to put "Method" as the first column
+results_df <- results_df[, c("Method", "Training RMSE", "Test RMSE", "Training R^2", "Test R^2","non-zero Var")]
+
+# Print the table
+print(results_df)
+```
+
+###GP-ols K2
+```{r}
+# Assuming res.mat is already populated from previous code
+num.it <- 500 * 4
+runs <- c(1:10)
+res.mat <- array(, dim = c(4, length(runs), num.it))
+
+# Load the data into the res.mat array
+for(i in runs){
+    res.mat[1:2, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K2_loss__jobid_", i, ".csv")))[,1:num.it]
+    res.mat[3:4, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K2_rsq__jobid_", i, ".csv")))[,1:num.it]
+}
+
+# Find the location of the minimum test MSE (second variable, second dimension)
+test_mse <- res.mat[2, , ]  # Extract test MSE (second variable)
+min_mse_idx <- which(test_mse == min(test_mse), arr.ind = TRUE)  # Find location of minimum MSE
+
+# Extract the corresponding run and iteration
+run_idx <- min_mse_idx[1]  # Row index corresponding to the run
+iter_idx <- min_mse_idx[2]  # Column index corresponding to the iteration
+
+# Retrieve the values for training RMSE, test RMSE, training R^2, and test R^2 at the minimum MSE location
+training_rmse <- sqrt(res.mat[1, run_idx, iter_idx])  # Training RMSE (sqrt of training MSE)
+test_rmse <- sqrt(res.mat[2, run_idx, iter_idx])  # Test RMSE (sqrt of test MSE)
+training_rsq <- res.mat[3, run_idx, iter_idx]  # Training R^2
+test_rsq <- res.mat[4, run_idx, iter_idx]  # Test R^2
+
+# Create a dataframe to display the results
+results_df <- data.frame(
+  Run = run_idx,
+  Iteration = iter_idx,
+  'Training RMSE' = round(training_rmse, 4),
+  'Test RMSE' = round(test_rmse, 4),
+  'Training R^2' = round(training_rsq, 4),
+  'Test R^2' = round(test_rsq, 4)
+)
+
+# Print the results dataframe
+print(results_df)
+```
+
+###GP-ols K2 at convergence
+```{r}
+# Assuming res.mat is already populated from previous code
+num.it <- 500 * 4
+runs <- c(1:10)
+res.mat <- array(, dim = c(4, length(runs), num.it))
+
+# Load the data into the res.mat array
+for(i in runs){
+    res.mat[1:2, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K2_loss__jobid_", i, ".csv")))[,1:num.it]
+    res.mat[3:4, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K2_rsq__jobid_", i, ".csv")))[,1:num.it]
+}
+
+# Find the location of the minimum test MSE (second variable, second dimension)
+test_mse <- res.mat[2, ,num.it]  # Extract test MSE (second variable)
+min_mse_idx <- which(test_mse == min(test_mse))  # Find location of minimum MSE
+
+# Retrieve the values for training RMSE, test RMSE, training R^2, and test R^2 at the minimum MSE location
+training_rmse <- sqrt(res.mat[1, min_mse_idx, num.it])  # Training RMSE (sqrt of training MSE)
+test_rmse <- sqrt(res.mat[2, min_mse_idx, num.it])  # Test RMSE (sqrt of test MSE)
+training_rsq <- res.mat[3, min_mse_idx, num.it]  # Training R^2
+test_rsq <- res.mat[4, min_mse_idx, num.it]  # Test R^2
+
+# Create a dataframe to display the results
+results_df <- data.frame(
+  Run = min_mse_idx,
+  Iteration = num.it,
+  'Training RMSE' = round(training_rmse, 4),
+  'Test RMSE' = round(test_rmse, 4),
+  'Training R^2' = round(training_rsq, 4),
+  'Test R^2' = round(test_rsq, 4)
+)
+
+# Print the results dataframe
+print(results_df)
+```
+
+###GP-ols K3
+```{r}
+# Assuming res.mat is already populated from previous code
+num.it <- 500 * 4
+runs <- c(1:10)
+res.mat <- array(, dim = c(4, length(runs), num.it))
+
+# Load the data into the res.mat array
+for(i in runs){
+    res.mat[1:2, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpols_12init_bbs_loss__jobid_", i, ".csv")))[,1:num.it]
+    res.mat[3:4, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpols_12init_bbs_rsq__jobid_", i, ".csv")))[,1:num.it]
+}
+
+# Find the location of the minimum test MSE (second variable, second dimension)
+test_mse <- res.mat[2, , ]  # Extract test MSE (second variable)
+min_mse_idx <- which(test_mse == min(test_mse), arr.ind = TRUE)  # Find location of minimum MSE
+
+# Extract the corresponding run and iteration
+run_idx <- min_mse_idx[1]  # Row index corresponding to the run
+iter_idx <- min_mse_idx[2]  # Column index corresponding to the iteration
+
+# Retrieve the values for training RMSE, test RMSE, training R^2, and test R^2 at the minimum MSE location
+training_rmse <- sqrt(res.mat[1, run_idx, iter_idx])  # Training RMSE (sqrt of training MSE)
+test_rmse <- sqrt(res.mat[2, run_idx, iter_idx])  # Test RMSE (sqrt of test MSE)
+training_rsq <- res.mat[3, run_idx, iter_idx]  # Training R^2
+test_rsq <- res.mat[4, run_idx, iter_idx]  # Test R^2
+
+# Create a dataframe to display the results
+results_df <- data.frame(
+  Run = run_idx,
+  Iteration = iter_idx,
+  'Training RMSE' = round(training_rmse, 4),
+  'Test RMSE' = round(test_rmse, 4),
+  'Training R^2' = round(training_rsq, 4),
+  'Test R^2' = round(test_rsq, 4)
+)
+
+# Print the results dataframe
+print(results_df)
+```
+
+###GP-ols K4 or K8
+```{r}
+# Assuming res.mat is already populated from previous code
+num.it <- 500 * 4
+runs <- c(1:10)
+res.mat <- array(, dim = c(4, length(runs), num.it))
+
+# Load the data into the res.mat array
+for(i in runs){
+    res.mat[1:2, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K8_loss__jobid_", i, ".csv")))[,1:num.it]
+    res.mat[3:4, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K8_rsq__jobid_", i, ".csv")))[,1:num.it]
+}
+
+# Find the location of the minimum test MSE (second variable, second dimension)
+test_mse <- res.mat[2, , ]  # Extract test MSE (second variable)
+min_mse_idx <- which(test_mse == min(test_mse), arr.ind = TRUE)  # Find location of minimum MSE
+
+# Extract the corresponding run and iteration
+run_idx <- min_mse_idx[1]  # Row index corresponding to the run
+iter_idx <- min_mse_idx[2]  # Column index corresponding to the iteration
+
+# Retrieve the values for training RMSE, test RMSE, training R^2, and test R^2 at the minimum MSE location
+training_rmse <- sqrt(res.mat[1, run_idx, iter_idx])  # Training RMSE (sqrt of training MSE)
+test_rmse <- sqrt(res.mat[2, run_idx, iter_idx])  # Test RMSE (sqrt of test MSE)
+training_rsq <- res.mat[3, run_idx, iter_idx]  # Training R^2
+test_rsq <- res.mat[4, run_idx, iter_idx]  # Test R^2
+
+# Create a dataframe to display the results
+results_df <- data.frame(
+  Run = run_idx,
+  Iteration = iter_idx,
+  'Training RMSE' = round(training_rmse, 4),
+  'Test RMSE' = round(test_rmse, 4),
+  'Training R^2' = round(training_rsq, 4),
+  'Test R^2' = round(test_rsq, 4)
+)
+
+# Print the results dataframe
+print(results_df)
+```
+
+###GP-NN K3
+```{r}
+# Assuming res.mat is already populated from previous code
+num.it <- 500 * 4
+runs <- c(1,2,4,6,10)
+res.mat <- array(, dim = c(4, length(runs), num.it))
+
+# Load the data into the res.mat array
+for(i in runs){
+    res.mat[1:2, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpnn_12init_bbs_loss__jobid_", i, ".csv")))[,1:num.it]
+    res.mat[3:4, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpnn_12init_bbs_rsq__jobid_", i, ".csv")))[,1:num.it]
+}
+
+# Find the location of the minimum test MSE (second variable, second dimension)
+test_mse <- res.mat[2, , ]  # Extract test MSE (second variable)
+min_mse_idx <- which(test_mse == min(test_mse), arr.ind = TRUE)  # Find location of minimum MSE
+
+# Extract the corresponding run and iteration
+run_idx <- min_mse_idx[1]  # Row index corresponding to the run
+iter_idx <- min_mse_idx[2]  # Column index corresponding to the iteration
+
+# Retrieve the values for training RMSE, test RMSE, training R^2, and test R^2 at the minimum MSE location
+training_rmse <- sqrt(res.mat[1, run_idx, iter_idx])  # Training RMSE (sqrt of training MSE)
+test_rmse <- sqrt(res.mat[2, run_idx, iter_idx])  # Test RMSE (sqrt of test MSE)
+training_rsq <- res.mat[3, run_idx, iter_idx]  # Training R^2
+test_rsq <- res.mat[4, run_idx, iter_idx]  # Test R^2
+
+# Create a dataframe to display the results
+results_df <- data.frame(
+  Run = run_idx,
+  Iteration = iter_idx,
+  'Training RMSE' = round(training_rmse, 4),
+  'Test RMSE' = round(test_rmse, 4),
+  'Training R^2' = round(training_rsq, 4),
+  'Test R^2' = round(test_rsq, 4)
+)
+
+# Print the results dataframe
+print(results_df)
+```
+
+###GP-GP K3
+```{r}
+# Assuming res.mat is already populated from previous code
+num.it <- 500 * 4
+runs <- c(1:8,10)
+res.mat <- array(, dim = c(4, length(runs), num.it))
+
+# Load the data into the res.mat array
+for(i in runs){
+    res.mat[1:2, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpgp_12init_bbs_loss__jobid_", i, ".csv")))[,1:num.it]
+    res.mat[3:4, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpgp_12init_bbs_rsq__jobid_", i, ".csv")))[,1:num.it]
+}
+
+# Find the location of the minimum test MSE (second variable, second dimension)
+test_mse <- res.mat[2, , ]  # Extract test MSE (second variable)
+min_mse_idx <- which(test_mse == min(test_mse), arr.ind = TRUE)  # Find location of minimum MSE
+
+# Extract the corresponding run and iteration
+run_idx <- min_mse_idx[1]  # Row index corresponding to the run
+iter_idx <- min_mse_idx[2]  # Column index corresponding to the iteration
+
+# Retrieve the values for training RMSE, test RMSE, training R^2, and test R^2 at the minimum MSE location
+training_rmse <- sqrt(res.mat[1, run_idx, iter_idx])  # Training RMSE (sqrt of training MSE)
+test_rmse <- sqrt(res.mat[2, run_idx, iter_idx])  # Test RMSE (sqrt of test MSE)
+training_rsq <- res.mat[3, run_idx, iter_idx]  # Training R^2
+test_rsq <- res.mat[4, run_idx, iter_idx]  # Test R^2
+
+# Create a dataframe to display the results
+results_df <- data.frame(
+  Run = run_idx,
+  Iteration = iter_idx,
+  'Training RMSE' = round(training_rmse, 4),
+  'Test RMSE' = round(test_rmse, 4),
+  'Training R^2' = round(training_rsq, 4),
+  'Test R^2' = round(test_rsq, 4)
+)
+
+# Print the results dataframe
+print(results_df)
+```
+
+###GP-ols no covariates
+```{r}
+# Assuming res.mat is already populated from previous code
+num.it <- 500 * 4
+runs <- c(1:10)
+res.mat <- array(, dim = c(4, length(runs), num.it))
+
+# Load the data into the res.mat array
+for(i in runs){
+    res.mat[1:2, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpols_12init_bbs_loss__jobid_", i, ".csv")))[,1:num.it]
+    res.mat[3:4, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpols_12init_bbs_rsq__jobid_", i, ".csv")))[,1:num.it]
+}
+
+# Find the location of the minimum test MSE (second variable, second dimension)
+test_mse <- res.mat[2, , ]  # Extract test MSE (second variable)
+min_mse_idx <- which(test_mse == min(test_mse), arr.ind = TRUE)  # Find location of minimum MSE
+
+# Extract the corresponding run and iteration
+run_idx <- min_mse_idx[1]  # Row index corresponding to the run
+iter_idx <- min_mse_idx[2]  # Column index corresponding to the iteration
+
+# Retrieve the values for training RMSE, test RMSE, training R^2, and test R^2 at the minimum MSE location
+training_rmse <- sqrt(res.mat[1, run_idx, iter_idx])  # Training RMSE (sqrt of training MSE)
+test_rmse <- sqrt(res.mat[2, run_idx, iter_idx])  # Test RMSE (sqrt of test MSE)
+training_rsq <- res.mat[3, run_idx, iter_idx]  # Training R^2
+test_rsq <- res.mat[4, run_idx, iter_idx]  # Test R^2
+
+# Create a dataframe to display the results
+results_df <- data.frame(
+  Run = run_idx,
+  Iteration = iter_idx,
+  'Training RMSE' = round(training_rmse, 4),
+  'Test RMSE' = round(test_rmse, 4),
+  'Training R^2' = round(training_rsq, 4),
+  'Test R^2' = round(test_rsq, 4)
+)
+
+# Print the results dataframe
+print(results_df)
+```
+
+###bimodal linear mod
+*** note I needa check whether the train-test datasets are similar, I bet there is a difference but not sure how small. Also check if test data was properly transformed here.
+```{r}
+library(feather)
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/age_dmn_sex_strat.feather'))
+train.test.ind <- list()
+train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_dmn_test_index.csv')$x
+train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_dmn_train_index.csv')$x
+print(sd(age_tab$pm_tf[train.test.ind$train]))
+print(sd(age_tab$pm_tf[train.test.ind$test]))
+```
+
+seems wrong - seems like test was used to perform with training. But I thought I corrected it. I think it's fixed. We can see the plotted distributions of train and test for both bimodal and non-bimodal
+
+```{r}
+# Initialize a matrix for storing the results
+results <- matrix(NA, nrow = 3, ncol = 4)
+colnames(results) <- c("Training RMSE", "Test RMSE" ,"Training R^2", "Test R^2")
+rownames(results) <- c("Lasso", "Ridge", "GPR")
+
+# Lasso Results
+runs.hs <- 1:10
+hs.int <- matrix(, nrow = length(runs.hs), ncol = 13)
+for(i in runs.hs){
+  hs.int[which(i == runs.hs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug13_bimodal_lasso_noscale_", i, ".csv"))))
+}
+lasso_quantiles <- apply(hs.int[, c(5, 6,1,3)], MARGIN = 2, FUN = quantile, c(0.5))
+results["Lasso", ] <- lasso_quantiles
+
+# Ridge Results
+hs.int <- matrix(, nrow = length(runs.hs), ncol = 13)
+for(i in runs.hs){
+  hs.int[which(i == runs.hs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug13_bimodal_ridge_noscale_", i, ".csv"))))
+}
+ridge_quantiles <- apply(hs.int[, c(5, 6,1,3)], MARGIN = 2, FUN = quantile, c(0.5))
+results["Ridge", ] <- ridge_quantiles
+
+# GPR Results
+hs.int <- matrix(, nrow = length(runs.hs), ncol = 13)
+for(i in runs.hs){
+  hs.int[which(i == runs.hs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug13_bimodal_pm_gpr_noscale_", i, ".csv"))))
+}
+gpr_quantiles <- apply(hs.int[, c(5, 6,1,3)], MARGIN = 2, FUN = quantile, c(0.5))
+results["GPR", ] <- gpr_quantiles
+
+# Convert to a data frame and print the table
+results_df <- as.data.frame(results)
+results_df$Method <- rownames(results_df)
+
+# Reorder columns to put "Method" as the first column
+results_df <- results_df[, c("Method", "Training RMSE", "Test RMSE", "Training R^2", "Test R^2")]
+
+# Print the table
+print(results_df)
+```
+
+###bimodal gpnn
+
+
+12 regions too
+```{r}
+# Assuming res.mat is already populated from previous code
+num.it <- 250 * 4
+runs <- c(3,4,10)
+res.mat <- array(, dim = c(4, length(runs), num.it))
+
+# Load the data into the res.mat array
+for(i in runs){
+    res.mat[1:2, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_bi_gpnn_init_bbs_loss__jobid_",i,".csv")))[,1:num.it]
+    res.mat[3:4, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_bi_gpnn_init_bbs_rsq__jobid_", i, ".csv")))[,1:num.it]
+}
+
+# Find the location of the minimum test MSE (second variable, second dimension)
+test_mse <- res.mat[2, , ]  # Extract test MSE (second variable)
+min_mse_idx <- which(test_mse == min(test_mse), arr.ind = TRUE)  # Find location of minimum MSE
+
+# Extract the corresponding run and iteration
+run_idx <- min_mse_idx[1]  # Row index corresponding to the run
+iter_idx <- min_mse_idx[2]  # Column index corresponding to the iteration
+
+# Retrieve the values for training RMSE, test RMSE, training R^2, and test R^2 at the minimum MSE location
+training_rmse <- sqrt(res.mat[1, run_idx, iter_idx])  # Training RMSE (sqrt of training MSE)
+test_rmse <- sqrt(res.mat[2, run_idx, iter_idx])  # Test RMSE (sqrt of test MSE)
+training_rsq <- res.mat[3, run_idx, iter_idx]  # Training R^2
+test_rsq <- res.mat[4, run_idx, iter_idx]  # Test R^2
+
+# Create a dataframe to display the results
+results_df <- data.frame(
+  Run = run_idx,
+  Iteration = iter_idx,
+  'Training RMSE' = round(training_rmse, 4),
+  'Test RMSE' = round(test_rmse, 4),
+  'Training R^2' = round(training_rsq, 4),
+  'Test R^2' = round(test_rsq, 4)
+)
+
+# Print the results dataframe
+print(results_df)
+```
+ 
+###bimodal gp-ols
+
+```{r}
+# Assuming res.mat is already populated from previous code
+num.it <- 250 * 4
+runs <- c(2,6,7,9)
+res.mat <- array(, dim = c(4, length(runs), num.it))
+
+# Load the data into the res.mat array
+for(i in runs){
+    res.mat[1:2, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_bi_gpols_init_loss__jobid_",i,".csv")))[,1:num.it]
+    res.mat[3:4, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_bi_gpols_init_rsq__jobid_", i, ".csv")))[,1:num.it]
+}
+
+# Find the location of the minimum test MSE (second variable, second dimension)
+test_mse <- res.mat[2, , ]  # Extract test MSE (second variable)
+min_mse_idx <- which(test_mse == min(test_mse), arr.ind = TRUE)  # Find location of minimum MSE
+
+# Extract the corresponding run and iteration
+run_idx <- min_mse_idx[1]  # Row index corresponding to the run
+iter_idx <- min_mse_idx[2]  # Column index corresponding to the iteration
+
+# Retrieve the values for training RMSE, test RMSE, training R^2, and test R^2 at the minimum MSE location
+training_rmse <- sqrt(res.mat[1, run_idx, iter_idx])  # Training RMSE (sqrt of training MSE)
+test_rmse <- sqrt(res.mat[2, run_idx, iter_idx])  # Test RMSE (sqrt of test MSE)
+training_rsq <- res.mat[3, run_idx, iter_idx]  # Training R^2
+test_rsq <- res.mat[4, run_idx, iter_idx]  # Test R^2
+
+# Create a dataframe to display the results
+results_df <- data.frame(
+  Run = run_idx,
+  Iteration = iter_idx,
+  'Training RMSE' = round(training_rmse, 4),
+  'Test RMSE' = round(test_rmse, 4),
+  'Training R^2' = round(training_rsq, 4),
+  'Test R^2' = round(test_rsq, 4)
+)
+
+# Print the results dataframe
+print(results_df)
+```
+
+
 
 
 
