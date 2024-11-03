@@ -9,7 +9,11 @@
 
 #Sep 24 added saliency
 
-#Oct 21: added minimum test recorded
+#Oct 25: added minimum test recorded
+
+#Oct 28: assessing the minimum recorded, something is wrong
+
+#31 Oct: note that when num class = 3, i change the way of loading data
 
 
 if (!require("pacman")) {install.packages("pacman");library(pacman)}
@@ -33,13 +37,13 @@ print(Sys.time())
 print('############### Test Optimised ###############')
 
 
-filename <- "oct21_pm_sm_gpols_12init_bbs" 
+filename <- "aug9_pm_sm_gpols_12init_bbs" 
 success.run <- 1:10
 init.num <- ifelse(JobId %in% success.run, yes = JobId, no = sample(success.run,1))
 prior.var <- 0.05 #was 0.05
 learning_rate <- 0.99 #for slow decay starting less than 1
 prior.var.bias <- 1
-epoch <- 250 #was 500
+epoch <- 500 #250 #was 500
 beta.bb<- 0.5
 lr.init <- learning_rate
 
@@ -179,7 +183,7 @@ train_test_split<- function(num_datpoint, num_test,num_train){
   res3.dat <- array(t(apply(partial.gp,MARGIN = c(1),mult.dat)), dim =c(n.mask,n.dat,n.expan)) #rename res3.dat as the product of data and expansion
   
   ################################################################################################################################################
-  for(num.lat.class.select in c(2)){
+  for(num.lat.class.select in c(3)){
     
     prior.var <- 0.05 #was 0.05
     learning_rate <- 0.99 #for slow decay starting less than 1
@@ -237,8 +241,12 @@ train_test_split<- function(num_datpoint, num_test,num_train){
     it.num <- 1
     
     #Initial parameters for inverse gamma
-    alpha.init <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_minalpha__jobid_",init.num,".csv"))$x #shape
-    beta.init <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_minbeta__jobid_",init.num,".csv"))$x #scale
+    # alpha.init <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_minalpha__jobid_",init.num,".csv"))$x #shape
+    # beta.init <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_minbeta__jobid_",init.num,".csv"))$x #scale
+    # 
+    #only for k = 3
+    alpha.init <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpols_12init","_minalpha__jobid_",init.num,".csv"))$x #shape
+    beta.init <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpols_12init","_minbeta__jobid_",init.num,".csv"))$x #scale
     
     
     #Storing inv gamma
@@ -248,23 +256,34 @@ train_test_split<- function(num_datpoint, num_test,num_train){
     # conj.cv <- matrix(, nrow=n.mask,ncol=epoch*4)
     
     #Define init var
-    prior.var <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_minpriorvar__jobid_",init.num,".csv"))$x#Mean of IG
+    # prior.var <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_minpriorvar__jobid_",init.num,".csv"))$x#Mean of IG
+    prior.var <-  read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpols_12init","_minpriorvar__jobid_",init.num,".csv"))$x#Mean of IG
     
     #Fix prior var to be 0.1
     # prior.var <- 1.5
-    y.sigma <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_minsigma__jobid_",init.num,".csv"))$x
+    # y.sigma <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_minsigma__jobid_",init.num,".csv"))$x
+    y.sigma <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpols_12init","_minsigma__jobid_",init.num,".csv"))$x
+    
     y.sigma.vec <- y.sigma
     
     print("Initialisation")
     #1 Initialisation
     #1.1 Initialise the partial weights around normal dist as a matrix of size (nrow(bases..ie choose...) x number of neurons in 2nd layer ie#regions)
     # theta.matrix <- matrix(,nrow=n.mask, ncol= n.expan)
-    theta.matrix <- as.matrix(read_feather(paste0( "/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_mintheta__jobid_",init.num,'.feather')))
-    co.weights<- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_mincoweights__jobid_",init.num,".csv")))
+    # theta.matrix <- as.matrix(read_feather(paste0( "/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_mintheta__jobid_",init.num,'.feather')))
+    # co.weights<- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_mincoweights__jobid_",init.num,".csv")))
+    # 
+    # #Initialising bias (to 0)
+    # bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_minbias__jobid_",init.num,".csv"))$x
+    # co.bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_mincobias__jobid_",init.num,".csv"))$x
+    # 
+    theta.matrix <- as.matrix(read_feather(paste0( "/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpols_12init","_mintheta__jobid_",init.num,'.feather')))
+    co.weights<- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpols_12init","_mincoweights__jobid_",init.num,".csv")))
     
     #Initialising bias (to 0)
-    bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_minbias__jobid_",init.num,".csv"))$x
-    co.bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init",'_K',num.lat.class.select,"_mincobias__jobid_",init.num,".csv"))$x
+    bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpols_12init","_minbias__jobid_",init.num,".csv"))$x
+    co.bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpols_12init","_mincobias__jobid_",init.num,".csv"))$x
+    
     
     num.lat.class<- length(co.bias)
     
@@ -318,7 +337,7 @@ train_test_split<- function(num_datpoint, num_test,num_train){
         loss.train <- c(loss.train, mseCpp(hs_in.pred_SOI,lognum[mini.batch$train[[b]]]))
         rsq.train <- c(rsq.train, rsqCpp(lognum[mini.batch$train[[b]]],hs_in.pred_SOI))
         
-        loss.train.male <- c(loss.train.male, mseCpp(hs_in.pred_SOI[which(sex[mini.batch$train[[b]]] == 1)],lognufm[mini.batch$train[[b]]][which(sex[mini.batch$train[[b]]] == 1)]))
+        loss.train.male <- c(loss.train.male, mseCpp(hs_in.pred_SOI[which(sex[mini.batch$train[[b]]] == 1)],lognum[mini.batch$train[[b]]][which(sex[mini.batch$train[[b]]] == 1)]))
         rsq.train.male <- c(rsq.train.male, rsqCpp(lognum[mini.batch$train[[b]]][which(sex[mini.batch$train[[b]]] == 1)],hs_in.pred_SOI[which(sex[mini.batch$train[[b]]] == 1)]))
         
         loss.train.fmale <- c(loss.train.fmale, mseCpp(hs_in.pred_SOI[which(sex[mini.batch$train[[b]]] == -1)],lognum[mini.batch$train[[b]]][which(sex[mini.batch$train[[b]]] == -1)]))
@@ -375,6 +394,17 @@ train_test_split<- function(num_datpoint, num_test,num_train){
           min.co.bias <- co.bias
           min.lbias <- l.bias
           min.lweights <- c(beta_fit$HS)
+          
+          print(paste0("iteration number: ",it.num," should be 798"))
+          print(paste0("test rmse: ", min.mse))
+          print("lweights")
+          print(min.lweights)
+          print("l.bias")
+          print(min.lbias)
+          print("in-prediction summary")
+          print(summary(hs_in.pred_SOI))
+          print("out-prediction summary")
+          print(summary(hs_pred_SOI))
           
         }
         
@@ -552,6 +582,7 @@ train_test_split<- function(num_datpoint, num_test,num_train){
     write.csv(min.co.weights,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_K',num.lat.class.select,'_mincoweights_',"_jobid_",JobId,".csv"), row.names = FALSE)
     write.csv(min.co.bias,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_K',num.lat.class.select,'_mincobias_',"_jobid_",JobId,".csv"), row.names = FALSE)
     write_feather(as.data.frame(min.lweights),paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_K',num.lat.class.select,'_minlweights_',"_jobid_",JobId,'.feather'))
+    write.csv(as.data.frame(min.lweights),paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_K',num.lat.class.select,'_minlweightsCSV_',"_jobid_",JobId,".csv"), row.names = FALSE)
     write.csv(min.lbias,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_K',num.lat.class.select,'_minlbias_',"_jobid_",JobId,".csv"), row.names = FALSE)
     
     
@@ -572,6 +603,38 @@ train_test_split<- function(num_datpoint, num_test,num_train){
     write.csv(conj.alpha,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_K',num.lat.class.select,'_alpha_',"_jobid_",JobId,".csv"), row.names = FALSE)
     write.csv(conj.beta,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_K',num.lat.class.select,'_beta_',"_jobid_",JobId,".csv"), row.names = FALSE)
     write.csv(conj.invgamma,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_K',num.lat.class.select,'_invgam_',"_jobid_",JobId,".csv"), row.names = FALSE)
-  }
+  
+    
+    
+    
+    
+    
+    hidden.layer.test <- apply(t(apply(res3.dat,MARGIN = 2,FUN = mult.thea,thet=min.theta.matrix) + min.bias), 2, FUN = relu)
+    poly_features.test <- as.matrix(hidden.layer.test)
+    # co.hidden.layer.test <- softmax(t(t(co.dat[train.test.ind$unseen, ] %*% t(co.weights)) + co.bias))
+    co.hidden.layer.test <- softmax(t(t(co.dat%*% t(min.co.weights)) + min.co.bias))
+    
+    interaction_features.test <- sapply(1:ncol(co.hidden.layer.test), function(i) {
+      sapply(1:ncol(poly_features.test), function(j) {
+        elementwise_product(co.hidden.layer.test[, i], poly_features.test[, j])
+      })
+    })
+    # Create the design matrix
+    interaction_features.test <- array(data = interaction_features.test, dim = c(nrow(co.hidden.layer.test), ncol(co.hidden.layer.test) * ncol(poly_features.test))) #m1n1m1n2m1n3m1n4
+    # Create the design matrix
+    z.nb.test <- cbind(poly_features.test, co.hidden.layer.test, interaction_features.test)
+    hs_pred_SOI <- min.lbias + z.nb.test %*% min.lweights 
+    
+    pred.test.ind <- c(pred.test.ind,1:n.dat) 
+    pred.test.val <- c(pred.test.val,hs_pred_SOI) 
+    #class
+    class.test.val <- c(class.test.val, apply(co.hidden.layer.test,1,which.max) )
+    
+    temp.frame <- as.data.frame(rbind(pred.test.ind,pred.test.val,class.test.val))
+    colnames(temp.frame) <- NULL
+    colnames(temp.frame) <- 1:ncol(temp.frame)
+    write_feather(temp.frame,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_K',num.lat.class.select,'_min_outpred_ext_test_',"_jobid_",JobId,'.feather'))
+    
+    }
 
   

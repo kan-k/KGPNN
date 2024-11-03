@@ -162,6 +162,7 @@ time.taken <- Sys.time() - time.train
 cat("Training complete in: ", time.taken)
 pred_prior<-predict_fast_lm(lassofit, train_Z )#$mean
 pred_prior_new<-predict_fast_lm(lassofit, test_Z)#$mean
+pred_prior_all<-predict_fast_lm(lassofit, z.nb)#$mean
 
 
 ##########################################################################################################################################################
@@ -172,6 +173,8 @@ write.csv(c(unlist(t(as.matrix(rsqcal2(pred_prior$mean,pred_prior_new$mean,ind.o
           paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpr_noscale_",JobId,".csv"), row.names = FALSE)
 write.csv(c(pred_prior_new$mean),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpr_outpred_noscale_",JobId,".csv"), row.names = FALSE)
 write.csv(c(pred_prior$mean),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpr_inpred_noscale_",JobId,".csv"), row.names = FALSE)
+write.csv(c(pred_prior_all$mean),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpr_outpred_ext_noscale_",JobId,".csv"), row.names = FALSE)
+
 ####Result to use
 write.csv(rbind(c(train.test.ind$train),c(train.test.ind$test)),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpr_index_",JobId,".csv"), row.names = FALSE)
 write_feather(as.data.frame(lassofit$post_mean$betacoef),paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpr_coef_',JobId,'.feather'))

@@ -21,7 +21,7 @@ set.seed(JobId)
 
 print("Starting")
 
-filename <- "aug9_pm_sm_gpgp_12init"
+filename <- "oct31_pm_sm_gpgp_12init"
 # prior.var <- 0.05 #was 0.05
 learning_rate <- 0.99 #for slow decay starting less than 1
 prior.var.bias <- 1
@@ -237,7 +237,7 @@ for(i in 1:n.mask){
 
 #Weight for non-imaging covariates
 
-num.lat.class<- 3
+num.lat.class<- 2
 co.weights <- matrix(rnorm(ncol(co.dat)*num.lat.class,0,0.01), ncol = ncol(co.dat), nrow = num.lat.class) #4 number of latent subgroup #Note that this is 
 co.bias <- rnorm(num.lat.class,0,0.1) #I think this one is still one
 #Minimum values

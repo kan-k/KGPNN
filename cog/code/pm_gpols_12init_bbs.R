@@ -256,6 +256,8 @@ bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gp
 
 time.train <-  Sys.time()
 
+min.mse <- 1e8
+
 #Start epoch
 for(e in 1:epoch){
   
@@ -318,6 +320,18 @@ for(e in 1:epoch){
     loss.val.fmale <- c(loss.val.fmale, mseCpp(hs_pred_SOI[which(sex[train.test.ind$test] == -1)],lognum[train.test.ind$test][which(sex[train.test.ind$test] == -1)]))
     rsq.val.fmale <- c(rsq.val.fmale, rsqCpp(lognum[train.test.ind$test][which(sex[train.test.ind$test] == -1)],hs_pred_SOI[which(sex[train.test.ind$test] == -1)]))
     
+    if(isTRUE((tail(loss.val,1) < min.mse))){
+      min.theta.matrix <- theta.matrix
+      min.bias <- bias
+      min.y.sigma <- y.sigma
+      min.lr <- learning_rate
+      min.alpha <- conj.alpha[,(it.num-1)]
+      min.beta <- conj.beta[,(it.num-1)]
+      min.prior.var <- conj.invgamma[,(it.num-1)]
+      min.mse <- tail(loss.val,1)
+      min.lbias <- l.bias
+      min.lweights <- c(beta_fit$HS)
+    }
     ##Keeping the last 5 epochs predictions
     if(e >= (epoch-200)){ #let's save the last 200 epochs.
       pred.train.ind <- c(pred.train.ind,mini.batch$train[[b]]) 
@@ -495,14 +509,24 @@ write.csv(lr.vec,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filenam
 write.csv(pre.lr.vec,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_prelr_',"_jobid_",JobId,".csv"), row.names = FALSE)
 write_feather(as.data.frame(c(beta_fit$HS )),paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_lweights_',"_jobid_",JobId,'.feather'))
 
+write.csv(min.mse,paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_",filename,"_minloss_","_jobid_",JobId,".csv"), row.names = FALSE)
+write_feather(as.data.frame(min.theta.matrix),paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_mintheta_',"_jobid_",JobId,'.feather'))
+write_feather(as.data.frame(min.lweights),paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minlweights_',"_jobid_",JobId,'.feather'))
+write.csv(min.lbias,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minlbias_',"_jobid_",JobId,".csv"), row.names = FALSE)
+write.csv(min.bias,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minbias_',"_jobid_",JobId,".csv"), row.names = FALSE)
+write.csv(min.y.sigma,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minsigma_',"_jobid_",JobId,".csv"), row.names = FALSE)
+write.csv(min.lr,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minlr_',"_jobid_",JobId,".csv"), row.names = FALSE)
+write.csv(min.alpha,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minalpha_',"_jobid_",JobId,".csv"), row.names = FALSE)
+write.csv(min.beta,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minbeta_',"_jobid_",JobId,".csv"), row.names = FALSE)
+write.csv(min.prior.var,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minpriorvar_',"_jobid_",JobId,".csv"), row.names = FALSE)
 
 
-temp.frame <- as.data.frame(rbind(pred.train.ind,pred.train.val,class.train.val))
+temp.frame <- as.data.frame(rbind(pred.train.ind,pred.train.val))
 colnames(temp.frame) <- NULL
 colnames(temp.frame) <- 1:ncol(temp.frame)
 # temp.frame<- t(tail(t(temp.frame),length(train.test.ind$train)*5))
 write_feather(temp.frame,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_inpred_',"_jobid_",JobId,'.feather'))
-temp.frame <- as.data.frame(rbind(pred.test.ind,pred.test.val,class.test.val))
+temp.frame <- as.data.frame(rbind(pred.test.ind,pred.test.val))
 colnames(temp.frame) <- NULL
 colnames(temp.frame) <- 1:ncol(temp.frame)
 # temp.frame<- t(tail(t(temp.frame),length(train.test.ind$test)*5))
@@ -513,3 +537,24 @@ write_feather(temp.frame,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_'
 write.csv(conj.alpha,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_alpha_',"_jobid_",JobId,".csv"), row.names = FALSE)
 write.csv(conj.beta,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_beta_',"_jobid_",JobId,".csv"), row.names = FALSE)
 write.csv(conj.invgamma,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_invgam_',"_jobid_",JobId,".csv"), row.names = FALSE)
+
+
+
+hidden.layer.test <- apply(t(apply(res3.dat,MARGIN = 2,FUN = mult.thea,thet=min.theta.matrix) + min.bias), 2, FUN = relu)
+z.nb.test <- as.matrix(hidden.layer.test)
+hs_pred_SOI <- min.lbias + z.nb.test %*% min.lweights
+
+
+pred.test.ind <- c(1:n.dat) 
+pred.test.val <- c(hs_pred_SOI) 
+#class
+
+temp.frame <- as.data.frame(rbind(pred.test.ind,pred.test.val))
+colnames(temp.frame) <- NULL
+colnames(temp.frame) <- 1:ncol(temp.frame)
+write_feather(temp.frame,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_min_outpred_ext_test_',"_jobid_",JobId,'.feather'))
+
+
+
+
+

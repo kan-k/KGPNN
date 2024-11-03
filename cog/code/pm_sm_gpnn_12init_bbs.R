@@ -24,7 +24,7 @@ print('############### Test Optimised ###############')
 
 
 filename <- "aug9_pm_sm_gpnn_12init_bbs" 
-success.run <- c(2,3,8:10)
+success.run <- c(1:10)
 init.num <- ifelse(JobId %in% success.run, yes = JobId, no = sample(success.run,1))
 prior.var <- 0.05 #was 0.05
 learning_rate <- 0.99 #for slow decay starting less than 1
@@ -252,6 +252,8 @@ time.taken <- Sys.time() - time.load
 cat("Previous Param load complete in: ", time.taken)
 print(Sys.time())
 
+min.mse <- 1e8
+
 time.train <-  Sys.time()
 
 #Start epoch
@@ -343,6 +345,24 @@ for(e in 1:epoch){
     loss.val.fmale <- c(loss.val.fmale, mseCpp(hs_pred_SOI[which(sex[train.test.ind$test] == -1)],lognum[train.test.ind$test][which(sex[train.test.ind$test] == -1)]))
     rsq.val.fmale <- c(rsq.val.fmale, rsqCpp(lognum[train.test.ind$test][which(sex[train.test.ind$test] == -1)],hs_pred_SOI[which(sex[train.test.ind$test] == -1)]))
     
+    
+    
+    if((tail(loss.val,1) < min.mse) & (e >2 )){
+      min.weights <- weights
+      min.bias <- bias
+      min.y.sigma <- y.sigma
+      min.lr <- learning_rate
+      min.alpha <- conj.alpha[,(it.num-1)]
+      min.beta <- conj.beta[,(it.num-1)]
+      min.prior.var <- conj.invgamma[,(it.num-1)]
+      min.mse <- tail(loss.val,1)
+      min.co.weights <- co.weights
+      min.co.bias <- co.bias
+      min.gp.coef <- gp.coef
+      min.lweights <- hs_fit_SOI$post_mean$betacoef[-1]
+      min.lbias <- l.bias
+      
+    }
     ##Keeping the last 5 epochs predictions
     if(e >= (epoch-200)){ #let's save the last 200 epochs.
       pred.train.ind <- c(pred.train.ind,mini.batch$train[[b]]) 
@@ -566,6 +586,21 @@ write_feather(as.data.frame(c(beta_fit$HS )),paste0( '/well/nichols/users/qcv214
 write.csv(co.weights,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_coweights_',"_jobid_",JobId,".csv"), row.names = FALSE)
 write.csv(co.bias,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_cobias_',"_jobid_",JobId,".csv"), row.names = FALSE)
 
+#Write Minimum 
+write.csv(min.mse,paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_",filename,"_minloss_","_jobid_",JobId,".csv"), row.names = FALSE)
+write_feather(as.data.frame(min.weights),paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minweights_',"_jobid_",JobId,'.feather'))
+write_feather(as.data.frame(min.gp.coef),paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minLCgp_',"_jobid_",JobId,'.feather'))
+write_feather(as.data.frame(min.lweights),paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minlweights_',"_jobid_",JobId,'.feather'))
+write.csv(min.lbias,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minlbias_',"_jobid_",JobId,".csv"), row.names = FALSE)
+write.csv(min.bias,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minbias_',"_jobid_",JobId,".csv"), row.names = FALSE)
+write.csv(min.y.sigma,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minsigma_',"_jobid_",JobId,".csv"), row.names = FALSE)
+write.csv(min.lr,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minlr_',"_jobid_",JobId,".csv"), row.names = FALSE)
+write.csv(min.alpha,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minalpha_',"_jobid_",JobId,".csv"), row.names = FALSE)
+write.csv(min.beta,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minbeta_',"_jobid_",JobId,".csv"), row.names = FALSE)
+write.csv(min.prior.var,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_minpriorvar_',"_jobid_",JobId,".csv"), row.names = FALSE)
+write.csv(min.co.weights,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_mincoweights_',"_jobid_",JobId,".csv"), row.names = FALSE)
+write.csv(min.co.bias,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_mincobias_',"_jobid_",JobId,".csv"), row.names = FALSE)
+
 
 temp.frame <- as.data.frame(rbind(pred.train.ind,pred.train.val,class.train.val))
 colnames(temp.frame) <- NULL
@@ -583,3 +618,37 @@ write_feather(temp.frame,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_'
 write.csv(conj.alpha,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_alpha_',"_jobid_",JobId,".csv"), row.names = FALSE)
 write.csv(conj.beta,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_beta_',"_jobid_",JobId,".csv"), row.names = FALSE)
 write.csv(conj.invgamma,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_invgam_',"_jobid_",JobId,".csv"), row.names = FALSE)
+
+
+
+####### do a full set of predictions
+
+hidden.layer <-computeHiddenLayer(res3.dat, t(min.weights), min.bias)
+hidden.layer <-ReLU(hidden.layer)
+
+co.pre.hidden.layer <- t(t(co.dat %*% t(min.co.weights)) + min.co.bias)
+co.hidden.layer <- softmax(co.pre.hidden.layer)
+
+hidden.layer.mixed <- cbind(hidden.layer, co.hidden.layer)
+
+# Generate polynomial features (linear terms)
+partial.gp.centroid <- rbind(partial.gp.centroid.img,min.gp.coef)
+poly_features <- as.matrix(hidden.layer.mixed %*% partial.gp.centroid) #
+
+# z.nb <- cbind(1,poly_features) #This is different from LASIR in the sense that the subgroup latent directly affect the output, whereas the group themselves dont. But then that can be modified easily.
+
+hs_pred_SOI <- min.lbias + poly_features %*% min.lweights
+pred.test.ind <- 1:n.dat
+pred.test.val <- c(hs_pred_SOI)
+class.test.val <- c(apply(co.hidden.layer,1,which.max))
+
+
+temp.frame <- as.data.frame(rbind(pred.test.ind,pred.test.val,class.test.val))
+colnames(temp.frame) <- NULL
+colnames(temp.frame) <- 1:ncol(temp.frame)
+write_feather(temp.frame,paste0( '/well/nichols/users/qcv214/KGPNN/cog/pile/re_',filename,'_min_outpred_ext_',"_jobid_",JobId,'.feather'))
+
+
+
+
+

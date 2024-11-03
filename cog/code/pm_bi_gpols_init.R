@@ -1,6 +1,7 @@
 # R script
 
 #12 Aug, restraining lr to max of 0.9
+#29 oct, changed from pair-wise interact to all
 
 if (!require("pacman")) {install.packages("pacman");library(pacman)}
 p_load(BayesGPfit)
@@ -28,7 +29,7 @@ time.taken <- Sys.time() - start.time
 print(paste0("load rcpp file completed in: ", time.taken))
 
 
-filename <- "aug9_pm_bi_gpols_init"
+filename <- "oct29_pm_bi_gpols_init"
 # prior.var <- 0.05 #was 0.05
 learning_rate <- 0.99 #for slow decay starting less than 1
 epoch <- 250 #was 500
@@ -261,18 +262,30 @@ for(e in 1:epoch){
     
     # hidden.layer <- apply(t(t(res3.dat[mini.batch$train[[b]], ]  %*% t(weights)) + bias), 2, FUN = relu) #n x n.mask
     hidden.layer <- apply(t(apply(res3.dat[, mini.batch$train[[b]], ],MARGIN = 2,FUN = mult.thea,thet=theta.matrix) + bias), 2, FUN = relu) #not C++ optim, this collapes into two dimension
-    
-    
-    # hidden.layer.dmn <- apply(t(t(res3.dat.dmn[mini.batch$train[[b]], ]  %*% t(weights.dmn)) + bias.dmn), 2, FUN = relu)
+    #########Can optimise later since I already have the raw code. OPTIMISE the above
     hidden.layer.dmn <- apply(t(apply(res3.dat.dmn[, mini.batch$train[[b]], ],MARGIN = 2,FUN = mult.thea,thet=theta.matrix.dmn) + bias.dmn), 2, FUN = relu) #not C++ optim, this collapes into two dimension
-    
-    
     # Generate polynomial features (linear terms)
-    # hidden.features <- as.matrix(hidden.layer %*% partial.gp.centroid) # (n x n.mask) x (n.mask x l.expan) = (n x l.expan)
-    z.nb <- cbind(hidden.layer, hidden.layer.dmn, hidden.layer*hidden.layer.dmn) #This is different from LASIR in the sense that the subgroup latent directly affect the output, whereas the group themselves dont. But then that can be modified easily.
+    poly_features <- as.matrix(hidden.layer) #
+    interaction_features <- sapply(1:ncol(hidden.layer.dmn), function(i) {
+      sapply(1:ncol(poly_features), function(j) {
+        elementwise_product(hidden.layer.dmn[, i], poly_features[, j])
+      })
+    })
+    # Create the design matrix
+    interaction_features <- array(data = interaction_features, dim = c(nrow(hidden.layer.dmn), ncol(hidden.layer.dmn) * ncol(poly_features))) #m1n1m1n2m1n3m1n4
+    z.nb <- cbind(poly_features, hidden.layer.dmn, interaction_features) #This is different from LASIR in the sense that the subgroup latent directly affect the output, whereas the group themselves dont. But then that can be modified easily.
+    
+    ########
+    print(paste0("non-zero z.nb: ", sum(c(z.nb) != 0)))
+    #######
     
     fit.lm <- lm(age[mini.batch$train[[b]]] ~ z.nb)
     l.weights <- coefficients(fit.lm)[-1]
+
+    ########
+    print(l.weights)
+    ########
+    
     l.weights[is.na(l.weights)] <- 0
     beta_fit <- data.frame(HS = l.weights)
     l.bias <- coefficients(fit.lm)[1]
@@ -282,12 +295,6 @@ for(e in 1:epoch){
     loss.train <- c(loss.train, mseCpp(hs_in.pred_SOI,age[mini.batch$train[[b]]]))
     rsq.train <- c(rsq.train, rsqCpp(age[mini.batch$train[[b]]],hs_in.pred_SOI))
     
-    # loss.train.male <- c(loss.train.male, mseCpp(hs_in.pred_SOI[which(sex[mini.batch$train[[b]]] == 1)],age[mini.batch$train[[b]]][which(sex[mini.batch$train[[b]]] == 1)]))
-    # rsq.train.male <- c(rsq.train.male, rsqCpp(age[mini.batch$train[[b]]][which(sex[mini.batch$train[[b]]] == 1)],hs_in.pred_SOI[which(sex[mini.batch$train[[b]]] == 1)]))
-    
-    # loss.train.fmale <- c(loss.train.fmale, mseCpp(hs_in.pred_SOI[which(sex[mini.batch$train[[b]]] == -1)],age[mini.batch$train[[b]]][which(sex[mini.batch$train[[b]]] == -1)]))
-    # rsq.train.f <- c(rsq.train.fmale, rsqCpp(age[mini.batch$train[[b]]][which(sex[mini.batch$train[[b]]] == -1)],hs_in.pred_SOI[which(sex[mini.batch$train[[b]]] == -1)]))
-    
     temp.sum.sum.sq <- apply(theta.matrix, 1, FUN = function(x) sum(x^2))
     
     #Note wrong MAP here. I have NOT incorporated intercept
@@ -295,12 +302,19 @@ for(e in 1:epoch){
     
     ################################################################# TEST #################################################################
 
-    #####
     hidden.layer.test <- apply(t(apply(res3.dat[, train.test.ind$test, ],MARGIN = 2,FUN = mult.thea,thet=theta.matrix) + bias), 2, FUN = relu) #not C++ optim, this collapes into two dimension
-    # hidden.layer.dmn <- apply(t(t(res3.dat.dmn[mini.batch$train[[b]], ]  %*% t(weights.dmn)) + bias.dmn), 2, FUN = relu)
+    #########Can optimise later since I already have the raw code. OPTIMISE the above
     hidden.layer.dmn.test <- apply(t(apply(res3.dat.dmn[, train.test.ind$test, ],MARGIN = 2,FUN = mult.thea,thet=theta.matrix.dmn) + bias.dmn), 2, FUN = relu) #not C++ optim, this collapes into two dimension
-    # hidden.features <- as.matrix(hidden.layer %*% partial.gp.centroid) # (n x n.mask) x (n.mask x l.expan) = (n x l.expan)
-    z.nb.test <- cbind(hidden.layer.test, hidden.layer.dmn.test, hidden.layer.test*hidden.layer.dmn.test) #This is different from LASIR in the sense that the subgroup latent directly affect the output, whereas the group themselves dont. But then that can be modified easily.
+    # Generate polynomial features (linear terms)
+    poly_features <- as.matrix(hidden.layer.test) #
+    interaction_features <- sapply(1:ncol(hidden.layer.dmn.test), function(i) {
+      sapply(1:ncol(poly_features), function(j) {
+        elementwise_product(hidden.layer.dmn.test[, i], poly_features[, j])
+      })
+    })
+    # Create the design matrix
+    interaction_features <- array(data = interaction_features, dim = c(nrow(hidden.layer.dmn.test), ncol(hidden.layer.dmn.test) * ncol(poly_features))) #m1n1m1n2m1n3m1n4
+    z.nb.test <- cbind(poly_features, hidden.layer.dmn.test, interaction_features) #This is different from LASIR in the sense that the subgroup latent directly affect the output, whereas the group themselves dont. But then that can be modified easily.
     
     hs_pred_SOI <- l.bias + z.nb.test %*%beta_fit$HS
     loss.val <- c(loss.val, mseCpp(hs_pred_SOI,age[train.test.ind$test]))
@@ -355,8 +369,8 @@ for(e in 1:epoch){
       
       #####
       #########Here is inefficiency
-      grad.b <- updateGradBFirst(minibatch.size, n.mask,y.sigma, grad.loss, beta_fit$HS, hidden.layer,hidden.layer.dmn)
-      grad.b.dmn <- updateGradBSecond(minibatch.size, n.mask,y.sigma, grad.loss, beta_fit$HS, hidden.layer,hidden.layer.dmn)
+      grad.b <- updateGradBGPFirst(minibatch.size, n.mask,y.sigma, grad.loss, beta_fit$HS, hidden.layer,hidden.layer.dmn)
+      grad.b.dmn <- updateGradBGPSecond(minibatch.size, n.mask,y.sigma, grad.loss, beta_fit$HS, hidden.layer,hidden.layer.dmn)
       
       #Take batch average
       grad.b.m <- c(apply(grad.b, c(2), mean)) #I am applying -grad.b here. Is it right!?!?! 2 nov

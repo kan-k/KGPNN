@@ -121,6 +121,9 @@ print("out-predicting")
 print(dim(data.matrix(as.matrix(dat_allmat[ind.to.use$test,]))))
 pred_prior_new<-predict(lassofit, data.matrix(as.matrix(dat_allmat[ind.to.use$test,])), s= "lambda.min")
 
+pred_prior_all<-predict(lassofit, data.matrix(as.matrix(dat_allmat)), s= "lambda.min")
+
+
 time.taken <- Sys.time() - time.train
 cat("Training complete in: ", time.taken)
 
@@ -131,6 +134,7 @@ print("write prediction")
 
 write.csv(c(pred_prior_new),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_ridge_outpred_noscale_",JobId,".csv"), row.names = FALSE)
 write.csv(c(pred_prior),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_ridge_inpred_noscale_",JobId,".csv"), row.names = FALSE)
+write.csv(c(pred_prior_all),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_ridge_outpred_ext_noscale_",JobId,".csv"), row.names = FALSE)
 
 
 ######LASSO
@@ -144,6 +148,7 @@ pred_prior<-predict(lassofit, data.matrix(as.matrix(dat_allmat[ind.to.use$train,
 print("out-predicting")
 print(dim(data.matrix(as.matrix(dat_allmat[ind.to.use$test,]))))
 pred_prior_new<-predict(lassofit, data.matrix(as.matrix(dat_allmat[ind.to.use$test,])), s= "lambda.min")
+pred_prior_all<-predict(lassofit, data.matrix(as.matrix(dat_allmat)), s= "lambda.min")
 
 
 
@@ -157,3 +162,4 @@ print("write prediction")
 
 write.csv(c(pred_prior_new),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_lasso_outpred_noscale_",JobId,".csv"), row.names = FALSE)
 write.csv(c(pred_prior),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_lasso_inpred_noscale_",JobId,".csv"), row.names = FALSE)
+write.csv(c(pred_prior_all),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_lasso_outpred_ext_noscale_",JobId,".csv"), row.names = FALSE)
