@@ -9540,7 +9540,7 @@ resdat_test[798,2]
 Expanding held-out to assess the preditability of our model (maybe the model only perform well on the stratified held-out data)
 to do
 1. Record the best params on the validation set and use those to make predictions ==> note that this mean I also have to record the hidden layer params, otherwise fitting models on full data will be different.
-  modified `pm_sm_gpols_12init_K_bbs.R` oct21_pm_sm_gpols_12init_bbs 18835952
+  modified `pm_sm_gpols_12init_K_bbs.R` oct21_pm_sm_gpols_12init_bbs 19387987
 
 2. Compare the above against e.g. params at not the best result (e.g. at final iteration)
   result right now include 2 class gpols, then 3 class of other algo, then bimodal and data themselves
@@ -9705,6 +9705,19 @@ results_df <- data.frame(
 # Print the results dataframe
 print(results_df)
 ```
+```{r}
+theta.matrix <- as.matrix(read_feather(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K2_theta__jobid_1.feather")))
+co.weights<- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K2_coweights__jobid_1.csv")))
+bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K2_bias__jobid_1.csv"))$x
+co.bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K2_cobias__jobid_1.csv"))$x
+l.theta <- as.matrix(read_feather(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K2_lweights__jobid_1.feather")))
+#+1 for l.bias
+# Calculate the total number of elements across all variables
+total_variables <- length(theta.matrix) + length(co.weights) + length(bias) + length(co.bias) + length(l.theta) + 1
+# Print the total number of variables
+cat("Total number of variables:", total_variables, "\n")
+```
+
 
 ###GP-ols K3
 ```{r}
@@ -9746,7 +9759,18 @@ results_df <- data.frame(
 # Print the results dataframe
 print(results_df)
 ```
-
+```{r}
+theta.matrix <- as.matrix(read_feather(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpols_12init_bbs_theta__jobid_1.feather")))
+co.weights<- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpols_12init_bbs_coweights__jobid_1.csv")))
+bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpols_12init_bbs_bias__jobid_1.csv"))$x
+co.bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpols_12init_bbs_cobias__jobid_1.csv"))$x
+l.theta <- as.matrix(read_feather(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpols_12init_bbs_lweights__jobid_1.feather")))
+#+1 for l.bias
+# Calculate the total number of elements across all variables
+total_variables <- length(theta.matrix) + length(co.weights) + length(bias) + length(co.bias) + length(l.theta) + 1
+# Print the total number of variables
+cat("Total number of variables:", total_variables, "\n")
+```
 ###GP-ols K4 or K8
 ```{r}
 # Assuming res.mat is already populated from previous code
@@ -9786,6 +9810,20 @@ results_df <- data.frame(
 
 # Print the results dataframe
 print(results_df)
+print(which.min(res.mat[2,,2000]))
+```
+
+```{r}
+theta.matrix <- as.matrix(read_feather(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K8_theta__jobid_1.feather")))
+co.weights<- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K8_coweights__jobid_1.csv")))
+bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K8_bias__jobid_1.csv"))$x
+co.bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K8_cobias__jobid_1.csv"))$x
+l.theta <- as.matrix(read_feather(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K8_lweights__jobid_1.feather")))
+#+1 for l.bias
+# Calculate the total number of elements across all variables
+total_variables <- length(theta.matrix) + length(co.weights) + length(bias) + length(co.bias) + length(l.theta) + 1
+# Print the total number of variables
+cat("Total number of variables:", total_variables, "\n")
 ```
 
 ###GP-NN K3
@@ -9829,6 +9867,19 @@ results_df <- data.frame(
 print(results_df)
 ```
 
+```{r}
+theta.matrix <- as.matrix(read_feather(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpnn_12init_bbs_weights__jobid_1.feather")))
+co.weights<- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpnn_12init_bbs_coweights__jobid_1.csv")))
+bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpnn_12init_bbs_bias__jobid_1.csv"))$x
+co.bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpnn_12init_bbs_cobias__jobid_1.csv"))$x
+# l.theta <- as.matrix(read_feather(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpols_12init_bbs_lweights__jobid_1.feather")))
+#+1 for l.bias
+# Calculate the total number of elements across all variables
+total_variables <- length(theta.matrix) + length(co.weights) + length(bias) + length(co.bias) + 1 + 5456 + 16368
+# Print the total number of variables
+cat("Total number of variables:", total_variables, "\n")
+```
+
 ###GP-GP K3
 ```{r}
 # Assuming res.mat is already populated from previous code
@@ -9868,6 +9919,19 @@ results_df <- data.frame(
 
 # Print the results dataframe
 print(results_df)
+```
+
+```{r}
+theta.matrix <- as.matrix(read_feather(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpgp_12init_bbs_theta__jobid_1.feather")))
+co.weights<- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpgp_12init_bbs_coweights__jobid_1.csv")))
+bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpgp_12init_bbs_bias__jobid_1.csv"))$x
+co.bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpgp_12init_bbs_cobias__jobid_1.csv"))$x
+# l.theta <- as.matrix(read_feather(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpols_12init_bbs_lweights__jobid_1.feather")))
+#+1 for l.bias
+# Calculate the total number of elements across all variables
+total_variables <- length(theta.matrix) + length(co.weights) + length(bias) + length(co.bias) + 1 + 5456 + 16368
+# Print the total number of variables
+cat("Total number of variables:", total_variables, "\n")
 ```
 
 ###GP-ols no covariates
@@ -9911,6 +9975,19 @@ results_df <- data.frame(
 print(results_df)
 ```
 
+```{r}
+theta.matrix <- as.matrix(read_feather(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpols_12init_bbs_theta__jobid_1.feather")))
+# co.weights<- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K8_coweights__jobid_1.csv")))
+bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpols_12init_bbs_bias__jobid_1.csv"))$x
+# co.bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K8_cobias__jobid_1.csv"))$x
+l.theta <- as.matrix(read_feather(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpols_12init_bbs_lweights__jobid_1.feather")))
+#+1 for l.bias
+# Calculate the total number of elements across all variables
+total_variables <- length(theta.matrix) + length(bias) + length(l.theta) + 1
+# Print the total number of variables
+cat("Total number of variables:", total_variables, "\n")
+```
+
 ###bimodal linear mod
 *** note I needa check whether the train-test datasets are similar, I bet there is a difference but not sure how small. Also check if test data was properly transformed here.
 ```{r}
@@ -9927,8 +10004,8 @@ seems wrong - seems like test was used to perform with training. But I thought I
 
 ```{r}
 # Initialize a matrix for storing the results
-results <- matrix(NA, nrow = 3, ncol = 4)
-colnames(results) <- c("Training RMSE", "Test RMSE" ,"Training R^2", "Test R^2")
+results <- matrix(NA, nrow = 3, ncol = 5)
+colnames(results) <- c("Training RMSE", "Test RMSE" ,"Training R^2", "Test R^2","non-zero Var")
 rownames(results) <- c("Lasso", "Ridge", "GPR")
 
 # Lasso Results
@@ -9937,7 +10014,7 @@ hs.int <- matrix(, nrow = length(runs.hs), ncol = 13)
 for(i in runs.hs){
   hs.int[which(i == runs.hs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug13_bimodal_lasso_noscale_", i, ".csv"))))
 }
-lasso_quantiles <- apply(hs.int[, c(5, 6,1,3)], MARGIN = 2, FUN = quantile, c(0.5))
+lasso_quantiles <- apply(hs.int[, c(5, 6,1,3,13)], MARGIN = 2, FUN = quantile, c(0.5))
 results["Lasso", ] <- lasso_quantiles
 
 # Ridge Results
@@ -9945,7 +10022,7 @@ hs.int <- matrix(, nrow = length(runs.hs), ncol = 13)
 for(i in runs.hs){
   hs.int[which(i == runs.hs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug13_bimodal_ridge_noscale_", i, ".csv"))))
 }
-ridge_quantiles <- apply(hs.int[, c(5, 6,1,3)], MARGIN = 2, FUN = quantile, c(0.5))
+ridge_quantiles <- apply(hs.int[, c(5, 6,1,3,13)], MARGIN = 2, FUN = quantile, c(0.5))
 results["Ridge", ] <- ridge_quantiles
 
 # GPR Results
@@ -9953,7 +10030,7 @@ hs.int <- matrix(, nrow = length(runs.hs), ncol = 13)
 for(i in runs.hs){
   hs.int[which(i == runs.hs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug13_bimodal_pm_gpr_noscale_", i, ".csv"))))
 }
-gpr_quantiles <- apply(hs.int[, c(5, 6,1,3)], MARGIN = 2, FUN = quantile, c(0.5))
+gpr_quantiles <- apply(hs.int[, c(5, 6,1,3,13)], MARGIN = 2, FUN = quantile, c(0.5))
 results["GPR", ] <- gpr_quantiles
 
 # Convert to a data frame and print the table
@@ -9961,7 +10038,7 @@ results_df <- as.data.frame(results)
 results_df$Method <- rownames(results_df)
 
 # Reorder columns to put "Method" as the first column
-results_df <- results_df[, c("Method", "Training RMSE", "Test RMSE", "Training R^2", "Test R^2")]
+results_df <- results_df[, c("Method", "Training RMSE", "Test RMSE", "Training R^2", "Test R^2","non-zero Var")]
 
 # Print the table
 print(results_df)
@@ -10012,7 +10089,7 @@ print(results_df)
 ```
  
 ###bimodal gp-ols
-
+This currently assume elementwise interaction of hidden-hidden which is not exhuastive enough.
 ```{r}
 # Assuming res.mat is already populated from previous code
 num.it <- 250 * 4
@@ -10051,6 +10128,1743 @@ results_df <- data.frame(
 
 # Print the results dataframe
 print(results_df)
+```
+```{r}
+theta.matrix <- as.matrix(read_feather(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_bi_gpols_init_theta__jobid_2.feather")))
+bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_bi_gpols_init_bias__jobid_2.csv"))$x
+l.theta <- as.matrix(read_feather(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_bi_gpols_init_lweights__jobid_2.feather")))
+#+1 for l.bias
+# Calculate the total number of elements across all variables
+total_variables <- length(theta.matrix)*2 + length(bias)*2 + length(l.theta) + 1
+# Print the total number of variables
+cat("Total number of variables:", total_variables, "\n")
+```
+
+
+#23 Oct
+Need to count number of params and run time.
+
+Number of params equal to size of weights/theta + bias + coweights + cobias + lweight (lweight is pre/post transformed?, should be pre) + lbias (1)
+Need to be cause of concat weight for gpnn due to post-transformation save. 
+
+##Look at number of param
+We did it above
+
+
+#25 Oct
+notes from before:
+1. Record the best params on the validation set and use those to make predictions ==> note that this mean I also have to record the hidden layer params, otherwise fitting models on full data will be different.
+  modified //`pm_sm_gpols_12init_K_bbs.R` oct25_pm_sm_gpols_12init_bbs 19387987
+
+2. Compare the above against e.g. params at not the best result (e.g. at final iteration)
+  result right now include 2 class gpols, then 3 class of other algo, then bimodal and data themselves
+
+
+
+##Plot new bbs
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 250 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct25_pm_sm_gpols_12init_bbs_K2_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  ### Test RMSE ###
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))  # Test RMSE
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+
+  # Calculate the 25th percentile for each column
+  test_percentile_25 <- apply(sqrt(res.mat[2,,]), 2, function(x) quantile(x, 0))
+  
+  # Prepare the data for plotting
+  resdat_test <- data.frame(
+    Iteration = 1:num.it,
+    Percentile25 = test_percentile_25
+  )
+  
+  # Create the test plot using the 25th percentile
+  test_plot <- ggplot(resdat_test, aes(x = Iteration, y = Percentile25)) +
+    geom_line(color = "blue") +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    # Add annotations for each horizontal line
+    annotate("text", x = 0, y = r.test + 0.001, label = paste("Ridge:", round(r.test, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = l.test + 0.001, label = paste("Lasso:", round(l.test, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = gpr.test + 0.001, label = paste("GPR:", round(gpr.test, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = sd(age_tab$pm_tf[train.test.ind$test]) + 0.001, label = paste("sd response:", round(sd(age_tab$pm_tf[train.test.ind$test]), 4)), hjust = 0, vjust = -0.5, color = "black") +
+    scale_x_continuous(breaks = seq(0, num.it, by = 500)) +
+    ylim(1.03, 1.07) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE (0th Percentile) for ", Class," Classes"), 
+         x = "Iterations", y = "0th Percentile RMSE", color = "Reference Lines")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  ### Train RMSE ###
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))  # Train RMSE
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+
+  # Calculate the 25th percentile for each column
+  train_percentile_25 <- apply(sqrt(res.mat[1,,]), 2, function(x) quantile(x, 0))
+  
+  # Prepare the data for plotting
+  resdat_train <- data.frame(
+    Iteration = 1:num.it,
+    Percentile25 = train_percentile_25
+  )
+  
+  # Create the train plot using the 25th percentile
+  train_plot <- ggplot(resdat_train, aes(x = Iteration, y = Percentile25)) +
+    geom_line(color = "red") +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    # Add annotations for each horizontal line
+    annotate("text", x = 0, y = r.train + 0.001, label = paste("Ridge:", round(r.train, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = l.train + 0.001, label = paste("Lasso:", round(l.train, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = gpr.train + 0.001, label = paste("GPR:", round(gpr.train, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = sd(age_tab$pm_tf[train.test.ind$train]) + 0.001, label = paste("sd response:", round(sd(age_tab$pm_tf[train.test.ind$train]), 4)), hjust = 0, vjust = -0.5, color = "black") +
+    scale_x_continuous(breaks = seq(0, num.it, by = 500)) +
+    ylim(0.88, 1.05) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE (0th Percentile) for ", Class," Classes"), 
+         x = "Iterations", y = "0th Percentile RMSE", color = "Reference Lines")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+All good, I think lowest point achieved at same place.
+
+
+##To do
+- Do test predictions based on these on bigger dataset
+  - current, the data has 5204 participants, meaning i can do 1200 more right away.
+- look at ridge result, split data into halves and come up with a way to 
+
+##Compute transform_tf for the rest of data
+Original data
+```{r}
+library(feather)
+age_tab2 <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+train.test.ind <- list()
+train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x
+train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x
+```
+Transformation
+```{r}
+# Load necessary packages
+if (!require(scales)) install.packages("scales")
+if (!require(caret)) install.packages("caret")
+library(scales)
+library(caret)
+library(ggplot2)
+
+# Assuming age_tab and train.test.ind are already defined with the response variable called 'pm'
+
+# Function to perform Gaussian Inverse Transformation on training data
+gaussian_inverse_transform_train <- function(response_variable) {
+  # Rank transformation
+  ranks <- rank(response_variable)
+  
+  # Normal quantile transformation
+  normal_quantiles <- qnorm((ranks - 0.5) / length(ranks))
+  
+  return(list(
+    transformed = normal_quantiles,
+    ecdf_fn = ecdf(response_variable)  # Empirical CDF function for the training data
+  ))
+}
+
+# Apply pre-learned transformation to new data
+apply_prelearned_transformation <- function(test_response_variable, ecdf_fn) {
+  # Apply the ECDF to the test data
+  ecdf_values <- ecdf_fn(test_response_variable)
+  
+  # Replace exact 0 and 1 values
+  ecdf_values[ecdf_values == 0] <- .Machine$double.eps
+  ecdf_values[ecdf_values == 1] <- 1 - .Machine$double.eps
+  
+  # Normal quantile transformation using the ECDF values
+  normal_quantiles <- qnorm(ecdf_values)
+  
+  return(normal_quantiles)
+}
+
+# Learn the transformation on the training set
+train_indices <- train.test.ind$train
+test_indices <- setdiff(seq(nrow(age_tab)),train.test.ind$train)
+
+train_lognum <- age_tab$pm[train_indices]
+
+# Apply the Gaussian Inverse Transformation on the training set
+train_transformation <- gaussian_inverse_transform_train(train_lognum)
+
+# Add the transformed training values back to the dataframe
+age_tab$pm_tf <- NA
+age_tab$pm_tf[train_indices] <- train_transformation$transformed
+
+# Apply the learned transformation on the test set
+test_lognum <- age_tab$pm[test_indices]
+test_transformed <- apply_prelearned_transformation(test_lognum, train_transformation$ecdf_fn)
+
+# Add the transformed test values back to the dataframe
+age_tab$pm_tf[test_indices] <- test_transformed
+
+# write_feather(age_tab, '/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather')
+```
+
+Running 
+Created `pm_sm_gpols_12init_K_bbs_ext.R` to make held-out prediction on 1204 unseen data.
+//oct25_pm_sm_gpols_12init_bbs_K2... outpred_ext  19505288 ==> all done in 0.75 seconds.
+
+
+
+##initialising co-weight via ridge
+Load the training ridge predictions. 
+Jian suggest we can separate into group with high error vs low error (but this doesn't make sense no?) OR i guess we can do (lower than mean vs higher)
+
+idk which run to pick (ideally compute errors across different runs and average?)
+```{r}
+library(feather)
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+train.test.ind <- list()
+train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x
+train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x
+```
+
+```{r}
+# Load the ridge training predictions
+ridge.train <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_ridge_inpred_noscale_", 1, ".csv")))
+
+# Compute squared errors
+squared_errors <- (age_tab$pm_tf[train.test.ind$train] - c(ridge.train))^2
+
+# Calculate the median of squared errors
+med.error <- median(squared_errors)
+
+# Get indices where squared error < median
+indices_below_median <- which(squared_errors < med.error)
+
+# Get indices where squared error >= median
+indices_above_or_equal_median <- which(squared_errors >= med.error)
+
+##True dataset index is
+ind.below <- train.test.ind$train[indices_below_median]
+ind.above <- train.test.ind$train[indices_above_or_equal_median]
+
+#find the exact combination to yield what we look for. I think it turns into an SVM problem (non-linear)
+#so we create a synthetic response of group 1 and 2 as an outcome of softmax, then reverse engineer to find the right weights for co-weights
+```
+Load up co.dat
+```{r}
+  age <- as.numeric(age_tab$age)
+  sex <-  as.numeric(age_tab$sex)
+  sex <- sapply(sex, function(x) replace(x, x==0,-1)) #Change female to -1, male to 1
+  
+  train.test.ind <- list()
+  train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x
+  train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x
+  n.train <- length(train.test.ind$train)
+  
+  depind <- age_tab$DepInd
+  quantile_thresholds <- quantile(depind[train.test.ind$train], probs = seq(0, 1, by = 0.34))
+  #age.group <- ifelse(age > mean(age), yes = 1, no = -1)
+  dep.group1 <- ifelse(depind <=quantile_thresholds[[2]], yes =1, no = 0)
+  dep.group2 <- ifelse(depind > quantile_thresholds[[2]] & depind <=quantile_thresholds[[3]], yes =1, no = 0)
+  dep.group3 <- ifelse(depind > quantile_thresholds[[3]], yes =1, no = 0)
+  
+  quantile_thresholds <- quantile(age[train.test.ind$train], probs = seq(0, 1, by = 0.34))
+  #age.group <- ifelse(age > mean(age), yes = 1, no = -1)
+  age.group1 <- ifelse(age <=quantile_thresholds[[2]], yes =1, no = 0)
+  age.group2 <- ifelse(age > quantile_thresholds[[2]] & age <=quantile_thresholds[[3]], yes =1, no = 0)
+  age.group3 <- ifelse(age > quantile_thresholds[[3]], yes =1, no = 0)
+  
+  co.dat <- as.data.frame(cbind(sex,dep.group1,dep.group2,dep.group3 ,age.group1,age.group2,age.group3))
+  co.dat <- co.dat[train.test.ind$train ,]
+```
+
+```{r}
+# Set up data
+# Initialize Data
+co.dat$response <- ifelse(train.test.ind$train %in% ind.below, 1, 2)  # Assign labels "1" and "2"
+# Load the required package
+if (!require(nnet)) install.packages("nnet", dependencies = TRUE)
+library(nnet)
+
+# Prepare data with more than two classes in the response variable
+# Example: assuming `co.dat$response` has more than two classes
+co.dat$response <- as.factor(co.dat$response)  # Ensure the response variable is a factor for multiclass
+
+# Fit the multinomial logistic regression model
+model <- multinom(response ~ ., data = co.dat)
+
+# View the model summary to understand the coefficients for each class
+summary(model)
+
+# Predict on the training data
+pred_classes <- predict(model, co.dat)
+
+# Calculate accuracy
+accuracy <- mean(pred_classes == co.dat$response) * 100
+
+# Print the results
+cat("Multiclass Training Accuracy:", round(accuracy, 2), "%\n")
+```
+```{r}
+# Load the required package
+if (!require(nnet)) install.packages("nnet", dependencies = TRUE)
+library(nnet)
+
+# Prepare the response variable with two classes
+co.dat$response <- as.factor(ifelse(train.test.ind$train %in% ind.below, 1, 2))  # Convert to factor
+
+# Fit the multinomial logistic regression model with multinom()
+model <- multinom(response ~ ., data = co.dat)
+
+# Extract coefficients for each class relative to the reference (class 2)
+coefficients <- coef(model)
+
+# Convert coefficients into a (2x7) matrix for weights and a (2) vector for biases
+weights <- rbind(0, coefficients[-1])  # Add zero for the reference class weights
+biases <- c(0, coefficients[1])        # Add zero for the reference class bias
+
+## because of the binary set-up, this multinom only outputs one set of weights. So we can do a refernece class?
+
+
+# Print weights and biases
+cat("Weights (2x7 matrix):\n")
+print(weights)
+cat("\nBiases (2-element vector):\n")
+print(biases)
+
+# Calculate softmax probabilities using weights and biases
+softmax_probs <- function(X, weights, biases) {
+  Z <- X %*% t(weights) + biases  # Linear combination for each class
+  exp_Z <- exp(Z - apply(Z, 1, max))  # Subtract max for numerical stability
+  exp_Z / rowSums(exp_Z)
+}
+
+# Example prediction using softmax probabilities on training data
+X <- as.matrix(co.dat[, -ncol(co.dat)])  # Exclude the response column
+pred_probs <- softmax_probs(X, weights, biases) #but this is not what i wanted
+
+# Print the probabilities for each class
+head(pred_probs)
+```
+
+Created `pm_sm_gpols_guidedinit_K.R`
+//oct26_pm_sm_gpols_guidedinit 19510183 19562197
+
+
+#28 Oct
+
+##Evaluating gpols K = 2 on unseen
+```{r}
+library(feather)
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+train.test.ind <- list()
+train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x
+train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x
+
+train.test.ind$unseen <- setdiff(seq(nrow(age_tab)),c(train.test.ind$train,train.test.ind$test))
+```
+```{r}
+#data sd
+sd(age_tab$pm_tf[train.test.ind$unseen])
+var(age_tab$pm_tf[train.test.ind$test])
+
+```
+Loading in data
+/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct25_pm_sm_gpols_12init_bbs_K2_outpred_ext__jobid_1.feather
+```{r}
+#3 x 1204 where first row is index starting from 1, but unseen starts form 3 goes up to 5xxx, but all ordered
+out.pred <-  as.matrix(read_feather('/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct25_pm_sm_gpols_12init_bbs_K2_outpred_ext__jobid_1.feather'))
+out.pred[2,] <- out.pred[2,] - mean(out.pred[2,])
+#calculating rmse
+sqrt(mean((age_tab$pm_tf[train.test.ind$unseen]-c(out.pred[2,]))^2)) #somehow this predict everything to -833, I think the intercept is -833 
+```
+This is only marginally better... let me assess
+
+###Loading lbias and lweights
+```{r}
+l.weights <- c(unlist(read_feather(paste0( "/well/nichols/users/qcv214/KGPNN/cog/pile/re_","oct25_pm_sm_gpols_12init_bbs_K2","_lweights__jobid_",2,'.feather'))))
+l.bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_","oct25_pm_sm_gpols_12init_bbs_K2","_minlbias__jobid_",2,".csv"))$x
+```
+
+Running
+//`oct25_pm_sm_gpols_12init_bbs_K2 ... _outpred_ext_test_` to assess all predictions 19562032
+```{r}
+out.pred <-  as.matrix(read_feather('/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct25_pm_sm_gpols_12init_bbs_K2_outpred_ext_test__jobid_1.feather'))
+
+sd(age_tab$pm_tf[train.test.ind$train])
+sd(age_tab$pm_tf[train.test.ind$test])
+sd(age_tab$pm_tf[train.test.ind$unseen])
+
+
+out.pred[2,train.test.ind$train] <- out.pred[2,train.test.ind$train] - mean(out.pred[2,train.test.ind$train])
+out.pred[2,train.test.ind$test] <- out.pred[2,train.test.ind$test] - mean(out.pred[2,train.test.ind$test])
+out.pred[2,train.test.ind$unseen] <- out.pred[2,train.test.ind$unseen] - mean(out.pred[2,train.test.ind$unseen])
+
+sqrt(mean((age_tab$pm_tf[train.test.ind$train]-c(out.pred[2,train.test.ind$train]))^2)) #somehow this predict everything to -833, I think the intercept is -833 
+sqrt(mean((age_tab$pm_tf[train.test.ind$test]-c(out.pred[2,train.test.ind$test]))^2)) #somehow this predict everything to -833, I think the intercept is -833 
+sqrt(mean((age_tab$pm_tf[train.test.ind$unseen]-c(out.pred[2,train.test.ind$unseen]))^2)) #somehow this predict everything to -833, I think the intercept is -833 
+
+```
+Something is very off.
+//oct28_pm_sm_gpols_12init_bbs 19562125 => to assess the saved l.weights and l.bias ... l.bias is still huge... let's look at mean prediction?
+//oct28_pm_sm_gpols_12init_bbs 19564852 => assessing the summary of predictions and rmse ==> so oct25 had the right test rmse. but right now what's wrong is the prediction
+
+
+running
+//oct26_pm_sm_gpols_guidedinit_bbs 19565485
+
+
+##Identifying lowest point of oct28_pm_sm_gpols_12init_bbs
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 250 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct28_pm_sm_gpols_12init_bbs_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  ### Test RMSE ###
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))  # Test RMSE
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+
+  # Calculate the 25th percentile for each column
+  test_percentile_25 <- apply(sqrt(res.mat[2,,]), 2, function(x) quantile(x, 0))
+  
+  # Prepare the data for plotting
+  resdat_test <- data.frame(
+    Iteration = 1:num.it,
+    Percentile25 = test_percentile_25
+  )
+  
+  # Create the test plot using the 25th percentile
+  test_plot <- ggplot(resdat_test, aes(x = Iteration, y = Percentile25)) +
+    geom_line(color = "blue") +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    # Add annotations for each horizontal line
+    annotate("text", x = 0, y = r.test + 0.001, label = paste("Ridge:", round(r.test, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = l.test + 0.001, label = paste("Lasso:", round(l.test, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = gpr.test + 0.001, label = paste("GPR:", round(gpr.test, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = sd(age_tab$pm_tf[train.test.ind$test]) + 0.001, label = paste("sd response:", round(sd(age_tab$pm_tf[train.test.ind$test]), 4)), hjust = 0, vjust = -0.5, color = "black") +
+    scale_x_continuous(breaks = seq(0, num.it, by = 500)) +
+    ylim(1.03, 1.07) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE (0th Percentile) for ", Class," Classes"), 
+         x = "Iterations", y = "0th Percentile RMSE", color = "Reference Lines")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  ### Train RMSE ###
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))  # Train RMSE
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+
+  # Calculate the 25th percentile for each column
+  train_percentile_25 <- apply(sqrt(res.mat[1,,]), 2, function(x) quantile(x, 0))
+  
+  # Prepare the data for plotting
+  resdat_train <- data.frame(
+    Iteration = 1:num.it,
+    Percentile25 = train_percentile_25
+  )
+  
+  # Create the train plot using the 25th percentile
+  train_plot <- ggplot(resdat_train, aes(x = Iteration, y = Percentile25)) +
+    geom_line(color = "red") +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    # Add annotations for each horizontal line
+    annotate("text", x = 0, y = r.train + 0.001, label = paste("Ridge:", round(r.train, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = l.train + 0.001, label = paste("Lasso:", round(l.train, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = gpr.train + 0.001, label = paste("GPR:", round(gpr.train, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = sd(age_tab$pm_tf[train.test.ind$train]) + 0.001, label = paste("sd response:", round(sd(age_tab$pm_tf[train.test.ind$train]), 4)), hjust = 0, vjust = -0.5, color = "black") +
+    scale_x_continuous(breaks = seq(0, num.it, by = 500)) +
+    ylim(0.88, 1.05) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE (0th Percentile) for ", Class," Classes"), 
+         x = "Iterations", y = "0th Percentile RMSE", color = "Reference Lines")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+locating run and iteration of min
+```{r}
+resdat <- as.data.frame(sqrt(res.mat[2,,]))  # Test RMSE
+print(which(as.matrix(resdat) == min(as.matrix(resdat)), arr.ind=TRUE))
+```
+
+Locating the minimum
+```{r}
+which.min(resdat_test[,2])
+resdat_test[798,2]
+```
+let's read in this
+```{r}
+# for(i in 1:10){
+  print(sqrt(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct28_pm_sm_gpols_12init_bbs_K2_minloss__jobid_",2,".csv"))))
+# }
+```
+Okay it does coincide, just need to sqrt() it.
+###Loading lbias and lweights
+```{r}
+l.weights <- c(unlist(read_feather(paste0( "/well/nichols/users/qcv214/KGPNN/cog/pile/re_","oct28_pm_sm_gpols_12init_bbs_K2","_minlweights__jobid_",2,'.feather'))))
+l.bias <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_","oct28_pm_sm_gpols_12init_bbs_K2","_minlbias__jobid_",2,".csv"))$x
+```
+Okay right now the saved lweights and the displayed are not correct. They got the same 0, but all non-zero are totally wrong. Maybe Feather messes up this?
+//oct28_pm_sm_gpols_12init_bbs_K2 19608264 ==> saving lweights as csv and feather
+
+```{r}
+l.weights <- c(unlist(read_feather(paste0( "/well/nichols/users/qcv214/KGPNN/cog/pile/re_","oct28_pm_sm_gpols_12init_bbs_K2","_lweights__jobid_",2,'.feather'))))
+l.weights2 <- read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_","oct28_pm_sm_gpols_12init_bbs_K2","_minlweightsCSV__jobid_",2,".csv"))
+```
+
+It's all the same... i mistakenly used lweights instead of minlweights....
+
+##Guide gpols
+```{r}
+library(feather)
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+train.test.ind <- list()
+train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x
+train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x
+```
+###Ridge
+```{r}
+#lasso
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_lasso_noscale_",i,".csv"))))
+}
+(l.train <- quantile(hs.int[,5],c(0.5)))
+(l.test <-quantile(hs.int[,6],c(0.5)))
+
+#ridge
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_ridge_noscale_",i,".csv"))))
+}
+(r.train <- quantile(hs.int[,5],c(0.5)))
+(r.test <-quantile(hs.int[,6],c(0.5)))
+
+#ridge
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpr_noscale_",i,".csv"))))
+}
+(gpr.train <- quantile(hs.int[,5],c(0.5)))
+(gpr.test <-quantile(hs.int[,6],c(0.5)))
+```
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 250 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct26_pm_sm_gpols_guidedinit_bbs_K", Class, "_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  ### Test RMSE ###
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))  # Test RMSE
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+
+  # Calculate the 25th percentile for each column
+  test_percentile_25 <- apply(sqrt(res.mat[2,,]), 2, function(x) quantile(x, 0))
+  
+  # Prepare the data for plotting
+  resdat_test <- data.frame(
+    Iteration = 1:num.it,
+    Percentile25 = test_percentile_25
+  )
+  
+  # Create the test plot using the 25th percentile
+  test_plot <- ggplot(resdat_test, aes(x = Iteration, y = Percentile25)) +
+    geom_line(color = "blue") +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    # Add annotations for each horizontal line
+    annotate("text", x = 0, y = r.test + 0.001, label = paste("Ridge:", round(r.test, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = l.test + 0.001, label = paste("Lasso:", round(l.test, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = gpr.test + 0.001, label = paste("GPR:", round(gpr.test, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = sd(age_tab$pm_tf[train.test.ind$test]) + 0.001, label = paste("sd response:", round(sd(age_tab$pm_tf[train.test.ind$test]), 4)), hjust = 0, vjust = -0.5, color = "black") +
+    scale_x_continuous(breaks = seq(0, num.it, by = 500)) +
+    ylim(1.03, 1.07) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE (0th Percentile) for ", Class," Classes"), 
+         x = "Iterations", y = "0th Percentile RMSE", color = "Reference Lines")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  ### Train RMSE ###
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))  # Train RMSE
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+
+  # Calculate the 25th percentile for each column
+  train_percentile_25 <- apply(sqrt(res.mat[1,,]), 2, function(x) quantile(x, 0))
+  
+  # Prepare the data for plotting
+  resdat_train <- data.frame(
+    Iteration = 1:num.it,
+    Percentile25 = train_percentile_25
+  )
+  
+  # Create the train plot using the 25th percentile
+  train_plot <- ggplot(resdat_train, aes(x = Iteration, y = Percentile25)) +
+    geom_line(color = "red") +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    # Add annotations for each horizontal line
+    annotate("text", x = 0, y = r.train + 0.001, label = paste("Ridge:", round(r.train, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = l.train + 0.001, label = paste("Lasso:", round(l.train, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = gpr.train + 0.001, label = paste("GPR:", round(gpr.train, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = sd(age_tab$pm_tf[train.test.ind$train]) + 0.001, label = paste("sd response:", round(sd(age_tab$pm_tf[train.test.ind$train]), 4)), hjust = 0, vjust = -0.5, color = "black") +
+    scale_x_continuous(breaks = seq(0, num.it, by = 500)) +
+    ylim(0.88, 1.05) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE (0th Percentile) for ", Class," Classes"), 
+         x = "Iterations", y = "0th Percentile RMSE", color = "Reference Lines")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+locating run and iteration of min
+```{r}
+resdat <- as.data.frame(sqrt(res.mat[2,,]))  # Test RMSE
+print(which(as.matrix(resdat) == min(as.matrix(resdat)), arr.ind=TRUE))
+```
+What?? exact same run and iter? Graphs dont coincide but how coincidental??
+
+Need to look at the classes
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)  # Ensure this package is installed for reading feather files
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(1:10)
+
+for (r in success.run) {
+  # Load and process data
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct26_pm_sm_gpols_guidedinit_bbs_K2_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  
+  # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pm_tf')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pm_tf)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('age', 'sex', 'DepInd', 'pm_tf', 'pred', 'SqError', 'class')
+  
+  # Calculate the median `pred` for each `class`
+  class_order <- age.in %>%
+    group_by(class) %>%
+    summarise(median_pred = median(pred, na.rm = TRUE)) %>%
+    arrange(median_pred) %>%
+    pull(class)
+  
+  # Reorder the `class` factor based on the median `pred`
+  age.in$class <- factor(age.in$class, levels = class_order)
+  
+  # Calculate class sizes
+  class_sizes <- age.in %>%
+    group_by(class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, SqError, pm_tf), names_to = "variable", values_to = "value")
+  
+  # Create the boxplot with class sizes in the legend
+  p <- ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+    geom_boxplot() +
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Age, Sex, DepInd, tf_pm, Labeled by Class for Run", r),
+         x = "Class",
+         y = "Value") +
+    scale_fill_discrete(labels = class_labels)
+  
+  print(p)
+}
+```
+
+So this is after optimisation. Need to look at initial iteration for class ==> i need to look at init not bbs ==> cannot since I didn't save class prediction during param search
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)  # Ensure this package is installed for reading feather files
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(1:10)
+
+for (r in success.run) {
+  # Load and process data
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct26_pm_sm_gpols_guidedinit_bbs_K2_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- head(dat.in, n.test)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  
+  # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pm_tf')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pm_tf)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('age', 'sex', 'DepInd', 'pm_tf', 'pred', 'SqError', 'class')
+  
+  # Calculate the median `pred` for each `class`
+  class_order <- age.in %>%
+    group_by(class) %>%
+    summarise(median_pred = median(pred, na.rm = TRUE)) %>%
+    arrange(median_pred) %>%
+    pull(class)
+  
+  # Reorder the `class` factor based on the median `pred`
+  age.in$class <- factor(age.in$class, levels = class_order)
+  
+  # Calculate class sizes
+  class_sizes <- age.in %>%
+    group_by(class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pred, SqError, pm_tf), names_to = "variable", values_to = "value")
+  
+  # Create the boxplot with class sizes in the legend
+  p <- ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+    geom_boxplot() +
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Age, Sex, DepInd, tf_pm, Labeled by Class for Run", r),
+         x = "Class",
+         y = "Value") +
+    scale_fill_discrete(labels = class_labels)
+  
+  print(p)
+}
+```
+
+//`oct28_pm_sm_gpols_12init_bbs_K2 ... _outpred_ext_test_` to assess all predictions 19925689, 19925789... 19941461 ==> specifically specify run 2
+
+#29 Oct
+
+##Evaluating gpols K = 2 on unseen
+```{r}
+library(feather)
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+train.test.ind <- list()
+train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x
+train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x
+
+train.test.ind$unseen <- setdiff(seq(nrow(age_tab)),c(train.test.ind$train,train.test.ind$test))
+
+#data sd
+sd(age_tab$pm_tf[train.test.ind$unseen])
+```
+Loading data
+```{r}
+out.pred <-  as.matrix(read_feather('/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct28_pm_sm_gpols_12init_bbs_K2_min_outpred_ext_test__jobid_1.feather'))
+
+sd(age_tab$pm_tf[train.test.ind$train])
+sd(age_tab$pm_tf[train.test.ind$test])
+sd(age_tab$pm_tf[train.test.ind$unseen])
+
+sqrt(mean((age_tab$pm_tf[train.test.ind$train]-c(out.pred[2,train.test.ind$train]))^2)) 
+sqrt(mean((age_tab$pm_tf[train.test.ind$test]-c(out.pred[2,train.test.ind$test]))^2))  #this should be 1.033
+sqrt(mean((age_tab$pm_tf[train.test.ind$unseen]-c(out.pred[2,train.test.ind$unseen]))^2))
+
+```
+
+```{r}
+# Load predictions and class assignments
+out.pred <- as.matrix(read_feather('/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct28_pm_sm_gpols_12init_bbs_K2_min_outpred_ext_test__jobid_1.feather'))
+
+# Define a function to calculate RMSE for each class within a given index set
+calculate_rmse_by_class <- function(indices, class_labels, true_values, predictions) {
+  unique_classes <- unique(class_labels[indices])
+  rmse_by_class <- sapply(unique_classes, function(class) {
+    class_indices <- indices[class_labels[indices] == class]
+    sqrt(mean((true_values[class_indices] - predictions[class_indices])^2))
+  })
+  names(rmse_by_class) <- paste0("Class_", unique_classes)
+  return(rmse_by_class)
+}
+
+# True values and predictions
+true_values <- age_tab$pm_tf
+predictions <- out.pred[2, ]  # Prediction row
+class_labels <- out.pred[3, ]  # Class assignment row
+
+# Calculate RMSE for each class within training, test, and unseen indices
+train_rmse_by_class <- calculate_rmse_by_class(train.test.ind$train, class_labels, true_values, predictions)
+test_rmse_by_class <- calculate_rmse_by_class(train.test.ind$test, class_labels, true_values, predictions)
+unseen_rmse_by_class <- calculate_rmse_by_class(train.test.ind$unseen, class_labels, true_values, predictions)
+
+# Display results
+cat("Training RMSE by Class:\n")
+print(train_rmse_by_class)
+cat("\nTest RMSE by Class:\n")
+print(test_rmse_by_class)
+cat("\nUnseen RMSE by Class:\n")
+print(unseen_rmse_by_class)
+```
+
+All good. Now do this for all??
+
+
+
+
+##Bi-GP-OLS
+Fixed the interactions to span across all hidden layers `pm_bi_gpols_init.R`
+oct29_pm_bi_gpols_init 19855223 ==> all died after 2 iterations, very strange.
+
+
+Running 
+//aug22_pm_sm_gpols_12init_bbs_K2  _min_outpred_ext_test_ 19896030
+
+#30 oct
+
+##look at GPOLS K = 2 at convergence
+NOTE: I accidentally over-wrote this on the minimum results
+Re-runninb 
+aug22_pm_sm_gpols_12init_bbs_K2 _outpred_ext_test_ 19920610
+```{r}
+library(feather)
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+train.test.ind <- list()
+train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x
+train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x
+
+train.test.ind$unseen <- setdiff(seq(nrow(age_tab)),c(train.test.ind$train,train.test.ind$test))
+
+#data sd
+sd(age_tab$pm_tf[train.test.ind$unseen])
+```
+Loading data
+```{r}
+out.pred <-  as.matrix(read_feather('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K2_outpred_ext_test__jobid_1.feather'))
+
+sd(age_tab$pm_tf[train.test.ind$train])
+sd(age_tab$pm_tf[train.test.ind$test])
+sd(age_tab$pm_tf[train.test.ind$unseen])
+
+sqrt(mean((age_tab$pm_tf[train.test.ind$train]-c(out.pred[2,train.test.ind$train]))^2)) 
+sqrt(mean((age_tab$pm_tf[train.test.ind$test]-c(out.pred[2,train.test.ind$test]))^2))  #this should be 1.033
+sqrt(mean((age_tab$pm_tf[train.test.ind$unseen]-c(out.pred[2,train.test.ind$unseen]))^2))
+
+```
+```{r}
+# Load predictions and class assignments
+out.pred <- as.matrix(read_feather('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K2_outpred_ext_test__jobid_1.feather'))
+
+# Define a function to calculate RMSE for each class within a given index set
+calculate_rmse_by_class <- function(indices, class_labels, true_values, predictions) {
+  unique_classes <- unique(class_labels[indices])
+  rmse_by_class <- sapply(unique_classes, function(class) {
+    class_indices <- indices[class_labels[indices] == class]
+    sqrt(mean((true_values[class_indices] - predictions[class_indices])^2))
+  })
+  names(rmse_by_class) <- paste0("Class_", unique_classes)
+  return(rmse_by_class)
+}
+
+# True values and predictions
+true_values <- age_tab$pm_tf
+predictions <- out.pred[2, ]  # Prediction row
+class_labels <- out.pred[3, ]  # Class assignment row
+
+# Calculate RMSE for each class within training, test, and unseen indices
+train_rmse_by_class <- calculate_rmse_by_class(train.test.ind$train, class_labels, true_values, predictions)
+test_rmse_by_class <- calculate_rmse_by_class(train.test.ind$test, class_labels, true_values, predictions)
+unseen_rmse_by_class <- calculate_rmse_by_class(train.test.ind$unseen, class_labels, true_values, predictions)
+
+# Display results
+cat("Training RMSE by Class:\n")
+print(train_rmse_by_class)
+cat("\nTest RMSE by Class:\n")
+print(test_rmse_by_class)
+cat("\nUnseen RMSE by Class:\n")
+print(unseen_rmse_by_class)
+```
+This shows that unseen for class 1 is worst than the data itself.
+
+
+Let's try K = 3, 8 and maybe gpnn?
+for K = 8: //aug22_pm_sm_gpols_12init_bbs_K8 _outpred_ext_test_ 19900662
+Loading data
+```{r}
+out.pred <-  as.matrix(read_feather('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K8_outpred_ext_test__jobid_1.feather'))
+
+sd(age_tab$pm_tf[train.test.ind$train])
+sd(age_tab$pm_tf[train.test.ind$test])
+sd(age_tab$pm_tf[train.test.ind$unseen])
+
+sqrt(mean((age_tab$pm_tf[train.test.ind$train]-c(out.pred[2,train.test.ind$train]))^2)) 
+sqrt(mean((age_tab$pm_tf[train.test.ind$test]-c(out.pred[2,train.test.ind$test]))^2))  #this should be 1.033
+sqrt(mean((age_tab$pm_tf[train.test.ind$unseen]-c(out.pred[2,train.test.ind$unseen]))^2))
+
+```
+```{r}
+# Load predictions and class assignments
+out.pred <- as.matrix(read_feather('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K8_outpred_ext_test__jobid_1.feather'))
+
+# Define a function to calculate RMSE for each class within a given index set
+calculate_rmse_by_class <- function(indices, class_labels, true_values, predictions) {
+  unique_classes <- unique(class_labels[indices])
+  rmse_by_class <- sapply(unique_classes, function(class) {
+    class_indices <- indices[class_labels[indices] == class]
+    sqrt(mean((true_values[class_indices] - predictions[class_indices])^2))
+  })
+  names(rmse_by_class) <- paste0("Class_", unique_classes)
+  return(rmse_by_class)
+}
+
+# True values and predictions
+true_values <- age_tab$pm_tf
+predictions <- out.pred[2, ]  # Prediction row
+class_labels <- out.pred[3, ]  # Class assignment row
+
+# Calculate RMSE for each class within training, test, and unseen indices
+train_rmse_by_class <- calculate_rmse_by_class(train.test.ind$train, class_labels, true_values, predictions)
+test_rmse_by_class <- calculate_rmse_by_class(train.test.ind$test, class_labels, true_values, predictions)
+unseen_rmse_by_class <- calculate_rmse_by_class(train.test.ind$unseen, class_labels, true_values, predictions)
+
+# Display results
+cat("Training RMSE by Class:\n")
+print(train_rmse_by_class)
+cat("\nTest RMSE by Class:\n")
+print(test_rmse_by_class)
+cat("\nUnseen RMSE by Class:\n")
+print(unseen_rmse_by_class)
+```
+
+##Inspecting guided classification
+loading data
+```{r}
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+#age_tab <- age_tab[order(age_tab$id),].     #DOES THIS MESS UP ORDER
+lognum <- age_tab$pm_tf
+
+age <- as.numeric(age_tab$age)
+sex <-  as.numeric(age_tab$sex)
+sex <- sapply(sex, function(x) replace(x, x==0,-1)) #Change female to -1, male to 1
+
+train.test.ind <- list()
+train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x
+train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x
+n.train <- length(train.test.ind$train)
+
+depind <- age_tab$DepInd
+quantile_thresholds <- quantile(depind[train.test.ind$train], probs = seq(0, 1, by = 0.34))
+#age.group <- ifelse(age > mean(age), yes = 1, no = -1)
+dep.group1 <- ifelse(depind <=quantile_thresholds[[2]], yes =1, no = 0)
+dep.group2 <- ifelse(depind > quantile_thresholds[[2]] & depind <=quantile_thresholds[[3]], yes =1, no = 0)
+dep.group3 <- ifelse(depind > quantile_thresholds[[3]], yes =1, no = 0)
+
+quantile_thresholds <- quantile(age[train.test.ind$train], probs = seq(0, 1, by = 0.34))
+#age.group <- ifelse(age > mean(age), yes = 1, no = -1)
+age.group1 <- ifelse(age <=quantile_thresholds[[2]], yes =1, no = 0)
+age.group2 <- ifelse(age > quantile_thresholds[[2]] & age <=quantile_thresholds[[3]], yes =1, no = 0)
+age.group3 <- ifelse(age > quantile_thresholds[[3]], yes =1, no = 0)
+
+co.dat <- cbind(sex,dep.group1,dep.group2,dep.group3 ,age.group1,age.group2,age.group3)
+```
+loading guide
+```{r}
+library(nnet)
+      # Load the ridge training predictions
+      ridge.train <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_ridge_inpred_noscale_", 1, ".csv")))
+      # Compute squared errors
+      squared_errors <- (age_tab$pm_tf[train.test.ind$train] - c(ridge.train))^2
+      # Calculate the median of squared errors
+      med.error <- median(squared_errors)
+      # Get indices where squared error < median
+      indices_below_median <- which(squared_errors < med.error)
+      # Get indices where squared error >= median
+      indices_above_or_equal_median <- which(squared_errors >= med.error)
+      ##True dataset index is
+      ind.below <- train.test.ind$train[indices_below_median]
+      ind.above <- train.test.ind$train[indices_above_or_equal_median]
+      
+      co.dat.ref <- as.data.frame(co.dat[train.test.ind$train,])
+      co.dat.ref$response <- ifelse(train.test.ind$train %in% ind.below, 1, 2)
+      
+      # Fit the multinomial logistic regression model with multinom()
+      model <- multinom(response ~ ., data = co.dat.ref)
+      # Extract coefficients for each class relative to the reference (class 2)
+      coefficients <- coef(model)
+      coefficients[is.na(coefficients)] <- 0
+      # Convert coefficients into a (2x7) matrix for weights and a (2) vector for biases
+      co.weights <- as.matrix(rbind(0, coefficients[-1]))  # Add zero for the reference class weights
+      colnames(co.weights) <- NULL
+      co.bias <- c(0, coefficients[1])        # Add zero for the reference class bias
+      colnames(co.bias) <- NULL
+```
+Pass thru ReLU, take arg max, look at the dist 
+```{r}
+  softmax <-function(z){
+    t(apply(z,1,function(x){
+      x<-10*x
+      xmax <- max(x)
+      return(exp(x-max(x))/sum(exp(x-max(x))))
+    }))
+  }
+co.pre.hidden.layer <- t(t(co.dat[train.test.ind$train, ] %*% t(co.weights)) + co.bias)
+co.hidden.layer <- softmax(co.pre.hidden.layer)
+class.train <- apply(co.hidden.layer,1,which.max)
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)  # Ensure this package is installed for reading feather files
+
+age.in <- age_tab[train.test.ind$train, c('age', 'sex', 'DepInd', 'pm_tf')]
+age.in <- cbind(age.in, as.factor(class.train))
+colnames(age.in) <- c('age', 'sex', 'DepInd', 'pm_tf', 'class')
+
+
+class_sizes <- age.in %>%
+  group_by(class) %>%
+  summarise(count = n())
+
+# Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(age.in, cols = c(age, sex, DepInd, pm_tf), names_to = "variable", values_to = "value")
+  
+  # Create the boxplot with class sizes in the legend
+  p <- ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+    geom_boxplot() +
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Age, Sex, DepInd, tf_pm, Labeled by Class for Run"),
+         x = "Class",
+         y = "Value") +
+    scale_fill_discrete(labels = class_labels)
+  
+  print(p)
+```
+  It splits by gender almost perfectly??? but eventually it goes back to splitting by everything else
+  Bear in mind the accuracy of splitting is very low.
+  
+  
+##Bimodal 
+//oct29_pm_bi_gpols_init 19905248  => Assessing the lweights and z.nb
+
+##K-GPNN 
+trying K = 2
+//oct30_pm_sm_gpnn_12init 19921137
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.class <- c(2)
+num.it <- 500 * 4
+runs <- c(1:10)
+
+for(Class in num.class){
+
+  res.mat <- array(, dim = c(2, length(runs), num.it))
+  for(i in runs){
+    res.mat[, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct30_pm_sm_gpnn_12init_loss__jobid_", i, ".csv")))[, 1:num.it]
+  }
+
+  ### Test RMSE ###
+  resdat <- as.data.frame(sqrt(res.mat[2,,]))  # Test RMSE
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+
+  # Calculate the 25th percentile for each column
+  test_percentile_25 <- apply(sqrt(res.mat[2,,]), 2, function(x) quantile(x, 0))
+  
+  # Prepare the data for plotting
+  resdat_test <- data.frame(
+    Iteration = 1:num.it,
+    Percentile25 = test_percentile_25
+  )
+  
+  # Create the test plot using the 25th percentile
+  test_plot <- ggplot(resdat_test, aes(x = Iteration, y = Percentile25)) +
+    geom_line(color = "blue") +
+    geom_hline(aes(yintercept = r.test, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.test, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.test, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$test]), color = "sd response"), linetype = "dashed", size = 1) +
+    # Add annotations for each horizontal line
+    annotate("text", x = 0, y = r.test + 0.001, label = paste("Ridge:", round(r.test, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = l.test + 0.001, label = paste("Lasso:", round(l.test, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = gpr.test + 0.001, label = paste("GPR:", round(gpr.test, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = sd(age_tab$pm_tf[train.test.ind$test]) + 0.001, label = paste("sd response:", round(sd(age_tab$pm_tf[train.test.ind$test]), 4)), hjust = 0, vjust = -0.5, color = "black") +
+    scale_x_continuous(breaks = seq(0, num.it, by = 500)) +
+    # ylim(1.03, 1.07) +
+    theme_minimal() +
+    labs(title = paste("Test RMSE (0th Percentile) for ", Class," Classes"), 
+         x = "Iterations", y = "0th Percentile RMSE", color = "Reference Lines")
+  
+  print(test_plot)  # Print the Test RMSE plot
+  
+  ### Train RMSE ###
+  resdat <- as.data.frame(sqrt(res.mat[1,,]))  # Train RMSE
+  colnames(resdat) <- 1:ncol(resdat)
+  resdat$row_id <- seq_len(nrow(resdat))
+
+  # Calculate the 25th percentile for each column
+  train_percentile_25 <- apply(sqrt(res.mat[1,,]), 2, function(x) quantile(x, 0))
+  
+  # Prepare the data for plotting
+  resdat_train <- data.frame(
+    Iteration = 1:num.it,
+    Percentile25 = train_percentile_25
+  )
+  
+  # Create the train plot using the 25th percentile
+  train_plot <- ggplot(resdat_train, aes(x = Iteration, y = Percentile25)) +
+    geom_line(color = "red") +
+    geom_hline(aes(yintercept = r.train, color = "Ridge"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = l.train, color = "Lasso"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = gpr.train, color = "GPR"), linetype = "dashed", size = 1) +
+    geom_hline(aes(yintercept = sd(age_tab$pm_tf[train.test.ind$train]), color = "sd response"), linetype = "dashed", size = 1) +
+    # Add annotations for each horizontal line
+    annotate("text", x = 0, y = r.train + 0.001, label = paste("Ridge:", round(r.train, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = l.train + 0.001, label = paste("Lasso:", round(l.train, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = gpr.train + 0.001, label = paste("GPR:", round(gpr.train, 4)), hjust = 0, vjust = -0.5, color = "black") +
+    annotate("text", x = 0, y = sd(age_tab$pm_tf[train.test.ind$train]) + 0.001, label = paste("sd response:", round(sd(age_tab$pm_tf[train.test.ind$train]), 4)), hjust = 0, vjust = -0.5, color = "black") +
+    scale_x_continuous(breaks = seq(0, num.it, by = 500)) +
+    # ylim(0.88, 1.05) +
+    theme_minimal() +
+    labs(title = paste("Train RMSE (0th Percentile) for ", Class," Classes"), 
+         x = "Iterations", y = "0th Percentile RMSE", color = "Reference Lines")
+  
+  print(train_plot)  # Print the Train RMSE plot
+}
+```
+//[failed ext pred] oct30_pm_sm_gpnn_12init_bbs 20092556 ==> doing K = 2 gpnn, and also do min recording AND ext predictions too.
+//`pm_sm_gpnn_12init_bbs_ext.R` created to make a ext predition 20276109==> [without run 10]
+
+//oct28_pm_sm_gpols_12init_bbs K8 20235715  ===> K = 8 gpols, also do ext predictions too... only need to look at run 6, only record 350 epochs.
+//aug9_pm_sm_gpols_12init_bbs K3 20309839 ==> note the added K = 3 here, need to look at run 5
+
+
+To do
+
+run ext for gpgp, linear models
+
+//re_pm_aug9_ridge_outpred_ext_noscale_, re_pm_aug9_lasso_outpred_ext_noscale_ 20338840
+//re_aug9_pm_gpr_outpred_ext  20338979
+
+//aug9_pm_sm_gpgp_12init_bbs ==> K =3 with ext 20344749
+also needa do gpgp with k = 2
+//oct31_pm_sm_gpgp_12init ==> K = 2 20345492
+oct31_pm_sm_gpgp_12init_bbs 20430017 ==> K = 2 with ext 
+
+#1 Nov
+
+##ext predictions
+```{r}
+library(feather)
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+train.test.ind <- list()
+train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x
+train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x
+train.test.ind$unseen <- setdiff(seq(nrow(age_tab)),c(train.test.ind$train,train.test.ind$test))
+```
+
+###linear models
+Ridge
+```{r}
+out.pred <-  as.matrix(read.csv('/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_ridge_outpred_ext_noscale_1.csv'))
+print(paste0("training rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$train]-c(out.pred[train.test.ind$train]))^2)),3)))
+print(paste0("test rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$test]-c(out.pred[train.test.ind$test]))^2)),3)))
+print(paste0("unseen rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$unseen]-c(out.pred[train.test.ind$unseen]))^2)),3)))
+```
+LASSO
+```{r}
+out.pred <-  as.matrix(read.csv('/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_lasso_outpred_ext_noscale_1.csv'))
+print(paste0("training rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$train]-c(out.pred[train.test.ind$train]))^2)),3)))
+print(paste0("test rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$test]-c(out.pred[train.test.ind$test]))^2)),3)))
+print(paste0("unseen rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$unseen]-c(out.pred[train.test.ind$unseen]))^2)),3)))
+```
+GPR
+```{r}
+out.pred <-  as.matrix(read.csv('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpr_outpred_ext_noscale_1.csv'))
+print(paste0("training rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$train]-c(out.pred[train.test.ind$train]))^2)),3)))
+print(paste0("test rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$test]-c(out.pred[train.test.ind$test]))^2)),3)))
+print(paste0("unseen rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$unseen]-c(out.pred[train.test.ind$unseen]))^2)),3)))
+```
+
+###GP-OLS K = 3
+some saving is wrong, out.pred is hugge
+```{r}
+out.pred <-  as.matrix(read_feather('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpols_12init_bbs_K3_min_outpred_ext_test__jobid_5.feather'))
+out.pred <- out.pred[, (ncol(out.pred) - length(age_tab$pm_tf) +1 ):ncol(out.pred)]
+print(paste0("training rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$train]-c(out.pred[2,train.test.ind$train]))^2)),3)))
+print(paste0("test rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$test]-c(out.pred[2,train.test.ind$test]))^2)),3)))
+print(paste0("unseen rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$unseen]-c(out.pred[2,train.test.ind$unseen]))^2)),3)))
+```
+
+###GP-OLS K = 8
+
+```{r}
+out.pred <-  as.matrix(read_feather('/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct28_pm_sm_gpols_12init_bbs_K8_min_outpred_ext_test__jobid_6.feather'))
+out.pred <- out.pred[, (ncol(out.pred) - length(age_tab$pm_tf) +1 ):ncol(out.pred)]
+
+print(paste0("training rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$train]-c(out.pred[2,train.test.ind$train]))^2)),3)))
+print(paste0("test rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$test]-c(out.pred[2,train.test.ind$test]))^2)),3)))
+print(paste0("unseen rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$unseen]-c(out.pred[2,train.test.ind$unseen]))^2)),3)))
+```
+
+###GPNN K = 2
+```{r}
+# Assuming res.mat is already populated from previous code
+num.it <- 500 * 4
+runs <- c(1:10)
+res.mat <- array(, dim = c(4, length(runs), num.it))
+
+# Load the data into the res.mat array
+for(i in runs){
+    res.mat[1:2, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct30_pm_sm_gpnn_12init_bbs_loss__jobid_", i, ".csv")))[,1:num.it]
+    res.mat[3:4, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct30_pm_sm_gpnn_12init_bbs_rsq__jobid_", i, ".csv")))[,1:num.it]
+}
+
+# Find the location of the minimum test MSE (second variable, second dimension)
+test_mse <- res.mat[2, , ]  # Extract test MSE (second variable)
+min_mse_idx <- which(test_mse == min(test_mse), arr.ind = TRUE)  # Find location of minimum MSE
+
+# Extract the corresponding run and iteration
+run_idx <- min_mse_idx[1]  # Row index corresponding to the run
+iter_idx <- min_mse_idx[2]  # Column index corresponding to the iteration
+
+# Retrieve the values for training RMSE, test RMSE, training R^2, and test R^2 at the minimum MSE location
+training_rmse <- sqrt(res.mat[1, run_idx, iter_idx])  # Training RMSE (sqrt of training MSE)
+test_rmse <- sqrt(res.mat[2, run_idx, iter_idx])  # Test RMSE (sqrt of test MSE)
+training_rsq <- res.mat[3, run_idx, iter_idx]  # Training R^2
+test_rsq <- res.mat[4, run_idx, iter_idx]  # Test R^2
+
+# Create a dataframe to display the results
+results_df <- data.frame(
+  Run = run_idx,
+  Iteration = iter_idx,
+  'Training RMSE' = round(training_rmse, 4),
+  'Test RMSE' = round(test_rmse, 4),
+  'Training R^2' = round(training_rsq, 4),
+  'Test R^2' = round(test_rsq, 4)
+)
+# Print the results dataframe
+print(results_df)
+```
+Run 8 is the best
+`oct30_pm_sm_gpnn_12init_bbs_min_outpred_ext_test` 20464897
+```{r}
+out.pred <-  as.matrix(read_feather('/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct30_pm_sm_gpnn_12init_bbs_min_outpred_ext_test__jobid_8.feather'))
+
+print(paste0("training rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$train]-c(out.pred[2,train.test.ind$train]))^2)),3)))
+print(paste0("test rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$test]-c(out.pred[2,train.test.ind$test]))^2)),3)))
+print(paste0("unseen rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$unseen]-c(out.pred[2,train.test.ind$unseen]))^2)),3)))
+```
+```{r}
+out.pred <-  as.matrix(read_feather('/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct30_pm_sm_gpnn_12init_bbs_min_outpred_ext__jobid_10.feather'))
+
+print(paste0("training rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$train]-c(out.pred[2,train.test.ind$train]))^2)),3)))
+print(paste0("test rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$test]-c(out.pred[2,train.test.ind$test]))^2)),3)))
+print(paste0("unseen rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$unseen]-c(out.pred[2,train.test.ind$unseen]))^2)),3)))
+```
+
+###GPGP K = 3
+```{r}
+# Assuming res.mat is already populated from previous code
+num.it <- 500 * 4
+runs <- c(1:10)
+res.mat <- array(, dim = c(4, length(runs), num.it))
+
+# Load the data into the res.mat array
+for(i in runs){
+    res.mat[1:2, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpgp_12init_bbs_loss__jobid_", i, ".csv")))[,1:num.it]
+    res.mat[3:4, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpgp_12init_bbs_rsq__jobid_", i, ".csv")))[,1:num.it]
+}
+
+# Find the location of the minimum test MSE (second variable, second dimension)
+test_mse <- res.mat[2, , ]  # Extract test MSE (second variable)
+min_mse_idx <- which(test_mse == min(test_mse), arr.ind = TRUE)  # Find location of minimum MSE
+
+# Extract the corresponding run and iteration
+run_idx <- min_mse_idx[1]  # Row index corresponding to the run
+iter_idx <- min_mse_idx[2]  # Column index corresponding to the iteration
+
+# Retrieve the values for training RMSE, test RMSE, training R^2, and test R^2 at the minimum MSE location
+training_rmse <- sqrt(res.mat[1, run_idx, iter_idx])  # Training RMSE (sqrt of training MSE)
+test_rmse <- sqrt(res.mat[2, run_idx, iter_idx])  # Test RMSE (sqrt of test MSE)
+training_rsq <- res.mat[3, run_idx, iter_idx]  # Training R^2
+test_rsq <- res.mat[4, run_idx, iter_idx]  # Test R^2
+
+# Create a dataframe to display the results
+results_df <- data.frame(
+  Run = run_idx,
+  Iteration = iter_idx,
+  'Training RMSE' = round(training_rmse, 4),
+  'Test RMSE' = round(test_rmse, 4),
+  'Training R^2' = round(training_rsq, 4),
+  'Test R^2' = round(test_rsq, 4)
+)
+# Print the results dataframe
+print(results_df)
+```
+run 4
+aug9_pm_sm_gpgp_12init_bbs ext 20466692 ==> just for predicting ext
+```{r}
+out.pred <-  as.matrix(read_feather('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpgp_12init_bbs_min_outpred_ext_test__jobid_4.feather'))
+
+print(paste0("training rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$train]-c(out.pred[2,train.test.ind$train]))^2)),3)))
+print(paste0("test rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$test]-c(out.pred[2,train.test.ind$test]))^2)),3)))
+print(paste0("unseen rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$unseen]-c(out.pred[2,train.test.ind$unseen]))^2)),3)))
+```
+
+###GPGP K = 2
+```{r}
+# Assuming res.mat is already populated from previous code
+num.it <- 500 * 4
+runs <- c(1:10)
+res.mat <- array(, dim = c(4, length(runs), num.it))
+
+# Load the data into the res.mat array
+for(i in runs){
+    res.mat[1:2, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct31_pm_sm_gpgp_12init_bbs_loss__jobid_", i, ".csv")))[,1:num.it]
+    res.mat[3:4, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct31_pm_sm_gpgp_12init_bbs_rsq__jobid_", i, ".csv")))[,1:num.it]
+}
+
+# Find the location of the minimum test MSE (second variable, second dimension)
+test_mse <- res.mat[2, , ]  # Extract test MSE (second variable)
+min_mse_idx <- which(test_mse == min(test_mse), arr.ind = TRUE)  # Find location of minimum MSE
+
+# Extract the corresponding run and iteration
+run_idx <- min_mse_idx[1]  # Row index corresponding to the run
+iter_idx <- min_mse_idx[2]  # Column index corresponding to the iteration
+
+# Retrieve the values for training RMSE, test RMSE, training R^2, and test R^2 at the minimum MSE location
+training_rmse <- sqrt(res.mat[1, run_idx, iter_idx])  # Training RMSE (sqrt of training MSE)
+test_rmse <- sqrt(res.mat[2, run_idx, iter_idx])  # Test RMSE (sqrt of test MSE)
+training_rsq <- res.mat[3, run_idx, iter_idx]  # Training R^2
+test_rsq <- res.mat[4, run_idx, iter_idx]  # Test R^2
+
+# Create a dataframe to display the results
+results_df <- data.frame(
+  Run = run_idx,
+  Iteration = iter_idx,
+  'Training RMSE' = round(training_rmse, 4),
+  'Test RMSE' = round(test_rmse, 4),
+  'Training R^2' = round(training_rsq, 4),
+  'Test R^2' = round(test_rsq, 4)
+)
+# Print the results dataframe
+print(results_df)
+```
+//oct31_pm_sm_gpgp_12init_bbs ext  20466674
+```{r}
+out.pred <-  as.matrix(read_feather('/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct31_pm_sm_gpgp_12init_bbs_min_outpred_ext_test__jobid_2.feather'))
+
+print(paste0("training rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$train]-c(out.pred[2,train.test.ind$train]))^2)),3)))
+print(paste0("test rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$test]-c(out.pred[2,train.test.ind$test]))^2)),3)))
+print(paste0("unseen rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$unseen]-c(out.pred[2,train.test.ind$unseen]))^2)),3)))
+```
+
+
+##Compiling
+```{r}
+# Initialize a data frame to store the results
+results <- data.frame(
+  Method = character(),
+  Training_RMSE = numeric(),
+  Test_RMSE = numeric(),
+  Unseen_RMSE = numeric(),
+  Training_R2 = numeric(),
+  Test_R2 = numeric(),
+  Unseen_R2 = numeric(),
+  stringsAsFactors = FALSE
+)
+
+# Define helper functions to calculate RMSE and R^2
+calculate_rmse <- function(pred, true_values, indices) {
+  sqrt(mean((true_values[indices] - pred[indices])^2))
+}
+
+calculate_r2 <- function(pred, true_values, indices) {
+  rss <- sum((true_values[indices] - pred[indices])^2)
+  tss <- sum((true_values[indices] - mean(true_values[indices]))^2)
+  (1 - rss / tss) * 100
+}
+
+# Load common data and indices
+library(feather)
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+train.test.ind <- list()
+train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_test_index.csv')$x
+train.test.ind$train <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x
+train.test.ind$unseen <- setdiff(seq(nrow(age_tab)), c(train.test.ind$train, train.test.ind$test))
+
+# Define methods and file paths
+methods <- list(
+  "Ridge" = '/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_ridge_outpred_ext_noscale_1.csv',
+  "LASSO" = '/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_lasso_outpred_ext_noscale_1.csv',
+  "GPR" = '/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpr_outpred_ext_noscale_1.csv',
+  "GP-OLS K=2" = '/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct28_pm_sm_gpols_12init_bbs_K2_min_outpred_ext_test__jobid_1.feather',
+  "GP-OLS K=2 (Convergence)" = '/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K2_outpred_ext_test__jobid_1.feather',
+  "GP-OLS K=3" = '/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpols_12init_bbs_K3_min_outpred_ext_test__jobid_5.feather',
+  "GP-OLS K=8" = '/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct28_pm_sm_gpols_12init_bbs_K8_min_outpred_ext_test__jobid_6.feather',
+  "GPNN K=2" = '/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct30_pm_sm_gpnn_12init_bbs_min_outpred_ext_test__jobid_8.feather',
+  "GPNN K=3" = '/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpnn_12init_bbs_min_outpred_ext__jobid_10.feather',
+  "GPGP K=2" = '/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct31_pm_sm_gpgp_12init_bbs_min_outpred_ext_test__jobid_2.feather',
+  "GPGP K=3" = '/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpgp_12init_bbs_min_outpred_ext_test__jobid_4.feather',
+  "GP-OLS img-only" = '/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpols_12init_bbs_min_outpred_ext_test__jobid_9.feather'
+)
+
+# Calculate RMSE and R^2 for each method
+for (method in names(methods)) {
+  # Load the prediction data
+  file_path <- methods[[method]]
+  
+  # Check if method is Ridge, LASSO, or GPR (vector predictions)
+  if (method %in% c("Ridge", "LASSO", "GPR")) {
+    out.pred <- read.csv(file_path)$x  # Read as vector directly
+    pred_values <- out.pred
+  } else {
+    # Load feather or CSV as a matrix
+    out.pred <- if (grepl("feather$", file_path)) {
+      as.matrix(read_feather(file_path))
+    } else {
+      as.matrix(read.csv(file_path))
+    }
+    
+    # Subset to the final columns matching the length of age_tab$pm_tf if necessary
+    if (ncol(out.pred) > length(age_tab$pm_tf)) {
+      out.pred <- out.pred[, (ncol(out.pred) - length(age_tab$pm_tf) + 1):ncol(out.pred)]
+    }
+    pred_values <- out.pred[2, ]  # Use second row for predictions
+  }
+  
+  # Calculate RMSE for training, test, and unseen indices
+  train_rmse <- calculate_rmse(pred_values, age_tab$pm_tf, train.test.ind$train)
+  test_rmse <- calculate_rmse(pred_values, age_tab$pm_tf, train.test.ind$test)
+  unseen_rmse <- calculate_rmse(pred_values, age_tab$pm_tf, train.test.ind$unseen)
+  
+  # Calculate R^2 for training, test, and unseen indices
+  train_r2 <- calculate_r2(pred_values, age_tab$pm_tf, train.test.ind$train)
+  test_r2 <- calculate_r2(pred_values, age_tab$pm_tf, train.test.ind$test)
+  unseen_r2 <- calculate_r2(pred_values, age_tab$pm_tf, train.test.ind$unseen)
+  
+  # Append results to the data frame
+  results <- rbind(results, data.frame(
+    Method = method,
+    Training_RMSE = round(train_rmse, 3),
+    Test_RMSE = round(test_rmse, 3),
+    Unseen_RMSE = round(unseen_rmse, 3),
+    Training_R2 = round(train_r2, 3),
+    Test_R2 = round(test_r2, 3),
+    Unseen_R2 = round(unseen_r2, 3)
+  ))
+}
+
+# Print the compiled results table
+print(results)
+
+```
+It's missing GPNN K = 3
+//aug9_pm_sm_gpnn_12init_bbs _ext_  20495259
+```{r}
+# Assuming res.mat is already populated from previous code
+num.it <- 500 * 4
+runs <- c(2,3,8,9,10)
+res.mat <- array(, dim = c(4, length(runs), num.it))
+
+# Load the data into the res.mat array
+for(i in runs){
+    res.mat[1:2, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpnn_12init_bbs_loss__jobid_", i, ".csv")))[,1:num.it]
+    res.mat[3:4, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpnn_12init_bbs_rsq__jobid_", i, ".csv")))[,1:num.it]
+}
+
+# Find the location of the minimum test MSE (second variable, second dimension)
+test_mse <- res.mat[2, , ]  # Extract test MSE (second variable)
+min_mse_idx <- which(test_mse == min(test_mse), arr.ind = TRUE)  # Find location of minimum MSE
+
+# Extract the corresponding run and iteration
+run_idx <- min_mse_idx[1]  # Row index corresponding to the run
+iter_idx <- min_mse_idx[2]  # Column index corresponding to the iteration
+
+# Retrieve the values for training RMSE, test RMSE, training R^2, and test R^2 at the minimum MSE location
+training_rmse <- sqrt(res.mat[1, run_idx, iter_idx])  # Training RMSE (sqrt of training MSE)
+test_rmse <- sqrt(res.mat[2, run_idx, iter_idx])  # Test RMSE (sqrt of test MSE)
+training_rsq <- res.mat[3, run_idx, iter_idx]  # Training R^2
+test_rsq <- res.mat[4, run_idx, iter_idx]  # Test R^2
+
+# Create a dataframe to display the results
+results_df <- data.frame(
+  Run = run_idx,
+  Iteration = iter_idx,
+  'Training RMSE' = round(training_rmse, 4),
+  'Test RMSE' = round(test_rmse, 4),
+  'Training R^2' = round(training_rsq, 4),
+  'Test R^2' = round(test_rsq, 4)
+)
+# Print the results dataframe
+print(results_df)
+```
+
+Run 3
+```{r}
+out.pred <-  as.matrix(read_feather('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpnn_12init_bbs_min_outpred_ext__jobid_10.feather'))
+
+print(paste0("training rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$train]-c(out.pred[2,train.test.ind$train]))^2)),3)))
+print(paste0("test rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$test]-c(out.pred[2,train.test.ind$test]))^2)),3)))
+print(paste0("unseen rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$unseen]-c(out.pred[2,train.test.ind$unseen]))^2)),3)))
+```
+they don't add up again. The numbers are different as I record minimum after 8 iterations, but min achieved at iteration 3
+
+Exporting
+```{r}
+# Define the file path for the CSV
+file_path <- "/well/nichols/users/qcv214/KGPNN/cog/tables/results_pm_1nov.csv"
+# Export the table as a CSV file
+write.csv(results, file = file_path, row.names = FALSE)
+# Confirm the file path
+cat("Results exported to:", file_path)
+```
+
+Imaging only
+//[ext wasn't recorded properly] aug9_pm_gpols_12init_bbs 20495343 
+
+//aug9_pm_gpols_12init_bbs _ext_ 20501874
+```{r}
+# Assuming res.mat is already populated from previous code
+num.it <- 500 * 4
+runs <- c(1:10)
+res.mat <- array(, dim = c(4, length(runs), num.it))
+
+# Load the data into the res.mat array
+for(i in runs){
+    res.mat[1:2, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpols_12init_bbs_loss__jobid_", i, ".csv")))[,1:num.it]
+    res.mat[3:4, which(i == runs), ] <- as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpols_12init_bbs_rsq__jobid_", i, ".csv")))[,1:num.it]
+}
+
+# Find the location of the minimum test MSE (second variable, second dimension)
+test_mse <- res.mat[2, , ]  # Extract test MSE (second variable)
+min_mse_idx <- which(test_mse == min(test_mse), arr.ind = TRUE)  # Find location of minimum MSE
+
+# Extract the corresponding run and iteration
+run_idx <- min_mse_idx[1]  # Row index corresponding to the run
+iter_idx <- min_mse_idx[2]  # Column index corresponding to the iteration
+
+# Retrieve the values for training RMSE, test RMSE, training R^2, and test R^2 at the minimum MSE location
+training_rmse <- sqrt(res.mat[1, run_idx, iter_idx])  # Training RMSE (sqrt of training MSE)
+test_rmse <- sqrt(res.mat[2, run_idx, iter_idx])  # Test RMSE (sqrt of test MSE)
+training_rsq <- res.mat[3, run_idx, iter_idx]  # Training R^2
+test_rsq <- res.mat[4, run_idx, iter_idx]  # Test R^2
+
+# Create a dataframe to display the results
+results_df <- data.frame(
+  Run = run_idx,
+  Iteration = iter_idx,
+  'Training RMSE' = round(training_rmse, 4),
+  'Test RMSE' = round(test_rmse, 4),
+  'Training R^2' = round(training_rsq, 4),
+  'Test R^2' = round(test_rsq, 4)
+)
+# Print the results dataframe
+print(results_df)
+```
+Run 9
+```{r}
+out.pred <-  as.matrix(read_feather('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_gpols_12init_bbs_min_outpred_ext_test__jobid_9.feather'))
+
+print(paste0("training rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$train]-c(out.pred[2,train.test.ind$train]))^2)),3)))
+print(paste0("test rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$test]-c(out.pred[2,train.test.ind$test]))^2)),3)))
+print(paste0("unseen rmse: ", round( sqrt(mean((age_tab$pm_tf[train.test.ind$unseen]-c(out.pred[2,train.test.ind$unseen]))^2)),3)))
+```
+
+
+I also need the gender version
+
+
+#2 Nov
+
+##Compiling figures
+###PM GP-OLS K = 2
+Distributions
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)  # Ensure this package is installed for reading feather files
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(1, 2, 10)
+
+for (r in success.run) {
+  # Load and process data
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K2_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  
+  # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pm_tf')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pm_tf)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('Age', 'Sex', 'Deprivation_Index', 'Pair_Matching', 'Prediction', 'Squared_Error', 'Class')
+  
+  # Calculate the median `pred` for each `class`
+  class_order <- age.in %>%
+    group_by(Class) %>%
+    summarise(median_pred = median(Prediction, na.rm = TRUE)) %>%
+    arrange(median_pred) %>%
+    pull(Class)
+  
+  # Reorder the `Class` factor based on the median `Prediction`
+  age.in$Class <- factor(age.in$Class, levels = class_order)
+  
+  # Calculate class sizes
+  class_sizes <- age.in %>%
+    group_by(Class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$Class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$Class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(age.in, cols = c(Age, Sex, Deprivation_Index, Prediction, Squared_Error, Pair_Matching), names_to = "variable", values_to = "value")
+  
+  # Calculate median values for annotation
+  medians <- age.in_long %>%
+    group_by(Class, variable) %>%
+    summarise(median_value = round(median(value, na.rm = TRUE), 3), .groups = 'drop')
+  
+  # Create the boxplot with class sizes in the legend
+  p <- ggplot(age.in_long, aes(x = Class, y = value, fill = Class)) +
+    geom_boxplot() +
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Non-imaging Covariates, Labeled by Class for Run #", r),
+         x = "Class",
+         y = "Value") +
+    scale_fill_discrete(labels = class_labels) +
+    # Add median text above each box
+    geom_text(data = medians, aes(label = median_value, y = median_value), 
+              position = position_dodge(width = 0.75), vjust = -0.5, color = "black", size = 3)
+  
+  print(p)
+}
+```
+let's do run 1,2,10 ==> arbitrarily.
+
+
+Predictions
+```{r}
+library(dplyr)
+library(ggplot2)
+library(feather)
+library(patchwork)  # For combining plots
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(1:10)
+
+for (r in success.run) {
+  # Load and process data
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K2_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+
+  # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pm_tf')]
+  age.in <- cbind(age.in, dat.in$pred, (age.in$pm_tf - dat.in$pred), as.factor(dat.in$class))
+  colnames(age.in) <- c('age', 'sex', 'DepInd', 'pm_tf', 'pred', 'residual', 'class')
+
+  ### 1. Scatter Plot: pm_tf (Truth) vs pred (Fitted)
+  truth_vs_fitted_plot <- ggplot(age.in, aes(x = pred, y = pm_tf, color = class)) +
+    geom_point(alpha = 0.7) +  # Use points with slight transparency
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black") +  # Add a y=x line
+    scale_color_manual(values = c("1" = "darkblue", "2" = "darkred")) +  # Dark blue for Class 1, Dark red for Class 2
+    theme_minimal() +
+    labs(title = "Fitted vs Truth", x = "Fitted Values (pred)", y = "True Values (pm_tf)", color = "Class") +
+    theme(legend.position = "right")  # Show legend on the right
+
+  ### 2. Scatter Plot: SqError vs pred (Fitted)
+  sqerror_vs_fitted_plot <- ggplot(age.in, aes(x = pred, y = residual, color = class)) +
+    geom_point(alpha = 0.7) +  # Use points with slight transparency
+    scale_color_manual(values = c("1" = "darkblue", "2" = "darkred")) +  # Dark blue for Class 1, Dark red for Class 2
+    theme_minimal() +
+    labs(title = "Residual vs Fitted", x = "Fitted Values (pred)", y = "y-y^", color = "Class") +
+    theme(legend.position = "right")  # Show legend on the right
+
+  ### Combine the two plots using patchwork
+  combined_plot <- truth_vs_fitted_plot + sqerror_vs_fitted_plot + 
+    plot_layout(ncol = 2) +  # Arrange the two plots side by side
+    plot_annotation(title = paste("Scatter Plots for Run", r))  # Add a main title for the combined plot
+
+  print(combined_plot)
+}
 ```
 
 
