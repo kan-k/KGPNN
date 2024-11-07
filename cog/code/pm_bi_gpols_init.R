@@ -31,7 +31,7 @@ print(paste0("load rcpp file completed in: ", time.taken))
 
 filename <- "oct29_pm_bi_gpols_init"
 # prior.var <- 0.05 #was 0.05
-learning_rate <- 0.99 #for slow decay starting less than 1
+learning_rate <- 0.00001#0.99 #for slow decay starting less than 1
 epoch <- 250 #was 500
 beta.bb<- 0.5
 lr.init <- learning_rate
@@ -129,7 +129,7 @@ print("Loading data")
 
 
 #Age
-age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/age_dmn_sex_strat.feather'))
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/age_dmn_sex_strat.feather'))[1:10,]
 age <- age_tab$pm_tf
 
 
@@ -150,8 +150,10 @@ p.dat <- ncol(res3.dat)
 n.dat <- nrow(res3.dat)
 
 train.test.ind <- list()
-train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_dmn_test_index.csv')$x
-train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_dmn_train_index.csv')$x
+# train.test.ind$test <- read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_dmn_test_index.csv')$x
+# train.test.ind$train <-  read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_dmn_train_index.csv')$x
+train.test.ind$test <- 9:10
+train.test.ind$train <-  1:8
 n.train <- length(train.test.ind$train)
 
 n.expan <- choose(20+3,3)
@@ -176,7 +178,7 @@ cat("Loading data complete in: ", time.taken)
 
 print("Getting mini batch")
 #Get minibatch index 
-batch_size <- 500 #Correspondds to 4 batches 500,500,500, 222
+batch_size <- 2#500 #Correspondds to 4 batches 500,500,500, 222
 
 
 #NN parameters
@@ -273,9 +275,26 @@ for(e in 1:epoch){
     })
     # Create the design matrix
     interaction_features <- array(data = interaction_features, dim = c(nrow(hidden.layer.dmn), ncol(hidden.layer.dmn) * ncol(poly_features))) #m1n1m1n2m1n3m1n4
+    
+    
+    # print(paste0("poly_features:"))
+    # print(dim(poly_features))
+    # print(paste0("hidden.layer.dmn:"))
+    # print(dim(hidden.layer.dmn))
+    # print(paste0("interaction_features:"))
+    # print(dim(interaction_features))
+    
+    ####
     z.nb <- cbind(poly_features, hidden.layer.dmn, interaction_features) #This is different from LASIR in the sense that the subgroup latent directly affect the output, whereas the group themselves dont. But then that can be modified easily.
     
     ########
+    # print("poly_features")
+    # print(poly_features[1:3,])
+    # print("hidden.layer.dmn")
+    # print(hidden.layer.dmn[1:3,])
+    print("zn.b of first 2 subjects")
+    print(z.nb[1:2,])
+    
     print(paste0("non-zero z.nb: ", sum(c(z.nb) != 0)))
     #######
     
@@ -283,6 +302,7 @@ for(e in 1:epoch){
     l.weights <- coefficients(fit.lm)[-1]
 
     ########
+    print("l.weights")
     print(l.weights)
     ########
     
@@ -357,6 +377,11 @@ for(e in 1:epoch){
       #4Update the full weights, fit GP against the full weights using HS-prior model to get normally dist thetas
       grad.loss <- age[mini.batch$train[[b]]] - hs_in.pred_SOI
       
+      #####for diminishing gradient, just set it to 0 instead of instability
+      if(max(abs(grad.loss))< 1e-8){
+        grad.loss <- rep(0,length(grad.loss))
+      }
+      
       #Update weight and weight.dmn
       grad <- updateDoubleWeightsGPFirst(minibatch.size, n.mask,y.sigma, grad.loss, beta_fit$HS, hidden.layer,res3.dat[,mini.batch$train[[b]], ], hidden.layer.dmn,res3.dat.dmn[,mini.batch$train[[b]], ])
       grad.dmn <- updateDoubleWeightsGPSecond(minibatch.size, n.mask,y.sigma, grad.loss, beta_fit$HS, hidden.layer,res3.dat[,mini.batch$train[[b]], ], hidden.layer.dmn,res3.dat.dmn[,mini.batch$train[[b]], ])
@@ -397,6 +422,19 @@ for(e in 1:epoch){
       # Update sigma
       y.sigma <- y.sigma - learning_rate*(grad.sigma.m)
       y.sigma.vec <- c(y.sigma.vec,y.sigma)
+      
+      print("y.sigma")
+      print(y.sigma)
+      print("grad.loss")
+      print(mean(grad.loss))
+      print("grad mean")
+      print(mean(c(grad.m)))
+      print("grad.dmn mean")
+      print(mean(c(grad.dmn.m)))
+      print("grad.b.m")
+      print(c(grad.b.m))
+      print("grad.b.dmn.m")
+      print(c(grad.b.dmn.m))
       
       delta_f <- c(c(theta.matrix/(prior.var*y.sigma) + grad.m*n.train),c(bias/prior.var.bias + grad.b.m*(n.train)),c(theta.matrix.dmn/(prior.var.dmn*y.sigma) + grad.dmn.m*n.train),c(bias.dmn/prior.var.bias.dmn + grad.b.dmn.m*(n.train)))
       

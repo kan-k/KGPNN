@@ -136,6 +136,15 @@ write.csv(c(pred_prior_new),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re
 write.csv(c(pred_prior),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_ridge_inpred_noscale_",JobId,".csv"), row.names = FALSE)
 write.csv(c(pred_prior_all),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_ridge_outpred_ext_noscale_",JobId,".csv"), row.names = FALSE)
 
+####4 nov, plotting
+beta <- coef(lassofit, , s= "lambda.min")
+mask.temp <-oro.nifti::readNIfTI('/well/nichols/users/qcv214/bnn2/res3/res3mask.nii.gz')
+beta_no_int <- beta[2:(sum(c(mask.temp!=0))+1),]
+mask.temp[mask.temp!=0] <- abs(c(beta_no_int))
+mask.temp@datatype = 16
+mask.temp@bitpix = 32
+writeNIfTI(mask.temp,paste0('/well/nichols/users/qcv214/KGPNN/cog/viz/aug9_pm_ridge_',JobId))
+
 
 ######LASSO
 #get beta(v)
@@ -163,3 +172,12 @@ print("write prediction")
 write.csv(c(pred_prior_new),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_lasso_outpred_noscale_",JobId,".csv"), row.names = FALSE)
 write.csv(c(pred_prior),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_lasso_inpred_noscale_",JobId,".csv"), row.names = FALSE)
 write.csv(c(pred_prior_all),paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_pm_aug9_lasso_outpred_ext_noscale_",JobId,".csv"), row.names = FALSE)
+
+####4 nov, plotting
+beta <- coef(lassofit, , s= "lambda.min")
+mask.temp <-oro.nifti::readNIfTI('/well/nichols/users/qcv214/bnn2/res3/res3mask.nii.gz')
+beta_no_int <- beta[2:(sum(c(mask.temp!=0))+1),]
+mask.temp[mask.temp!=0] <- abs(c(beta_no_int))
+mask.temp@datatype = 16
+mask.temp@bitpix = 32
+writeNIfTI(mask.temp,paste0('/well/nichols/users/qcv214/KGPNN/cog/viz/aug9_pm_lasso_',JobId))

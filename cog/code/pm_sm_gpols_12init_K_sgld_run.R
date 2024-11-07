@@ -25,7 +25,7 @@ print(Sys.time())
 print('############### Test Optimised ###############')
 
 
-filename <- "oct9_pm_sm_gpols_12init_sgld_lr99_run2" 
+filename <- "nov4_pm_sm_gpols_12init_sgld_lr99_run2" 
 success.run <- 1:10
 init.num <- ifelse(JobId %in% success.run, yes = JobId, no = sample(success.run,1))
 prior.var <- 0.05 #was 0.05
@@ -37,7 +37,7 @@ prior.var <- 0.05 #was 0.05
 learning_rate <- 0.99#1e-6 Change below
 
 prior.var.bias <- 1
-epoch <- 50#750 #was 500
+epoch <- 500#750 #was 500
 record.epoch <- 500 #epoch 
 beta.bb<- 0.5
 lr.init <- learning_rate

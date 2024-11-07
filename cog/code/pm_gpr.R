@@ -182,13 +182,23 @@ write_feather(as.data.frame(lassofit$post_mean$betacoef),paste0( '/well/nichols/
 ##Plotting 
 print("bases.nb")
 print(dim(bases.nb))
+
+xtest <- 1:10
+
+print("length all fitted coef")
+print(length(lassofit$post_mean$betacoef))
 print("length coef")
-print(length(lassofit$post_mean$betacoef[2:(ncol(bases.nb)+1)]))
+print(length(lassofit$post_mean$betacoef[2:(nrow(bases.nb)+1)]))
 print("fit t(bases.nb)")
-beta_fit <- data.frame(NM = crossprod(t(bases.nb),lassofit$post_mean$betacoef[2:(ncol(bases.nb)+1)]))
+# beta_fit <- data.frame(NM = crossprod(t(bases.nb),lassofit$post_mean$betacoef[2:(nrow(bases.nb)+1)]))
+beta_fit <- data.frame(NM = c(t(bases.nb) %*%lassofit$post_mean$betacoef[2:(nrow(bases.nb)+1)]))
+
+print("length NM")
+print(length(c(t(bases.nb) %*%lassofit$post_mean$betacoef[2:(nrow(bases.nb)+1)])))
+
 print("past")
 gp.mask.nm <- res3.mask
-gp.mask.nm[gp.mask.nm!=0] <-beta_fit$NM
+gp.mask.nm[gp.mask.nm!=0] <- abs(c(beta_fit$NM))
 gp.mask.nm@datatype = 16
 gp.mask.nm@bitpix = 32
 writeNIfTI(gp.mask.nm,paste0('/well/nichols/users/qcv214/KGPNN/cog/viz/re_aug9_pm_gpr_',poly_degree,a_concentration,b_smoothness,JobId))
