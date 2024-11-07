@@ -8174,6 +8174,8 @@ I will use
 Run 5 `/well/nichols/users/qcv214/KGPNN/pile/re_jan6_sm_depind15_gpnn_bbig_init_bbs_inpred__jobid_5.feather` as true
 Config is 4 classes, 30 deg expansion.
 
+I may need to re-run all analysis.
+
 
 ```{r}
 success.run <- c(5)
@@ -12304,8 +12306,158 @@ part_use2 <-part_list2[part_list2.exist_vbm] #length = 4257
 
 
 
+#4 Nov 2024
+##compiling all results
+Simulation
+- use apr21_sm_depind15_mixed_gpnn_bbig_init ==> perfect class split
+- look at 14 march
+- sim data sim15_a
+- realisation from re_jan6_sm_depind15_gpnn_bbig_init_bbs_inpred__jobid (5) ==> i think it's a wrong model in the first place, i.e. no mixed gp coef, may need to re-run.
 
 
+Real-data
+May need to re-run `sm_depind_gpnn_bbig_mixed_init.R` but with 3-4 classes only, we had 10 classes but took too long
+- `july3_sm_depind_gpnn_init_bbs`and `july3_sm_depind_gpnn_init`
+
+*** 
+let's do k = 4 on real data
+[stopped] `sm_depind_gpnn_bbig_mixed_init.R` nov4_sm_depind_gpnn_init 20640158 ==> this takes 3 mins per epoch BECAUSE it's using 52 regions
+`sm_depind_gpnn_bbig_mixed_12init.R` nov5_sm_depind_gpnn_init 20684875 
+let's do another one where we only use 12 regions.
+
+
+
+THEN use that to construct simulation like before. ==> or maybe do GPR then transform the output then fit these models. => do GPR on the dep15 rather than full
+contrast this with Lasso, ridge, GPR, 3-GPNN and GPNN
+
+//`depind15_gpr.R` re_nov5_depind15_gpr_outpred_ext  20678316
+
+Maybe it's enough, for age, to show for gpnn version and not gpgp or gpols?
+
+## GPR evaluation on real data
+```{r}
+runs.hs <- 1:10
+hs.int<-matrix(,nrow=length(runs.hs),ncol=13)
+for(i in runs.hs){
+  hs.int[which(i==runs.hs),] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/pile/re_nov5_depind15_gpr_noscale_",i,".csv"))))
+}
+(gpr.train <- quantile(hs.int[,5],c(0.5)))
+(gpr.test <-quantile(hs.int[,6],c(0.5)))
+```
+rmse of 6 is truly bad
+Anyhow, arbitrarily I will pick Run 1 as a realisation.
+let's look at distribution
+
+```{r}
+gpr.pred <- c(unlist(read.csv("/well/nichols/users/qcv214/KGPNN/pile/re_nov5_depind15_gpr_outpred_ext_noscale_1.csv")))
+
+hist(gpr.pred)
+```
+The following construction is based on 14 March, but there is one just before 3 apr that's even stronger.
+
+
+So to create a combined dataset, I can do 
+```{r}
+library(feather)
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/age_sex_strat_depind15.feather'))
+
+combined.pred <- cbind(round(gpr.pred), age_tab)
+colnames(combined.pred) <- c("pred",colnames(age_tab))
+# write_feather(combined.pred, '/well/nichols/users/qcv214/KGPNN/sim15_age.feather')
+```
+
+I will generate a new set of indices to use so our samples are nicely mixed. *NOTE* that every 5 indices, the predicted are badly fit due to outsample, if we keep them in then they will be just pure noise. But let's keep them first
+
+##Set random indices
+Let's split 75% and 25% => already done, sam indexing
+```{r}
+# ind.test <- seq(2,nrow(combined.pred),4)
+# ind.train <- setdiff(1:nrow(combined.pred), ind.test)
+# 
+# write.csv(x = ind.train, file = '/well/nichols/users/qcv214/KGPNN/sim15_train_index.csv', row.names = FALSE)
+# write.csv(x = ind.test, file = '/well/nichols/users/qcv214/KGPNN/sim15_test_index.csv', row.names = FALSE)
+```
+
+```{r}
+# Calculate the median of DepInd
+median_DepInd <- median(combined.pred$DepInd, na.rm = TRUE)
+
+# Create the class column based on the conditions
+combined.pred$class <- with(combined.pred, ifelse(sex == 0, 1,
+                                     ifelse(sex == 1 & DepInd < median_DepInd, 2, 3)))
+```
+
+
+Female (4): effect stay the same
+Male-H (3): increase effect by a factor of x3
+Male-L (2): subtract age by 40
+
+
+```{r}
+# age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+combined.pred$pred_amp <- ifelse(combined.pred$class == 1, combined.pred$pred, 
+                            ifelse(combined.pred$class == 2, combined.pred$pred*3, 
+                                   ifelse(combined.pred$class == 3, combined.pred$pred - 40, NA)))
+write_feather(combined.pred, '/well/nichols/users/qcv214/KGPNN/sim15_age_gpr.feather')
+```
+
+```{r}
+hist(combined.pred$pred_amp)
+```
+Plot distribution
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)  # Ensure this package is installed for reading feather files
+
+#turn class into factor
+combined.pred$class <- factor(combined.pred$class)
+# Calculate class sizes
+  class_sizes <- combined.pred %>%
+    group_by(class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(combined.pred, cols = c(sex, DepInd, pred_amp), names_to = "variable", values_to = "value")
+  
+  # Calculate median values for annotation
+  medians <- age.in_long %>%
+    group_by(class, variable) %>%
+    summarise(median_value = round(median(value, na.rm = TRUE), 3), .groups = 'drop')
+  
+  # Create the boxplot with class sizes in the legend
+  p <- ggplot(age.in_long, aes(x = class, y = value, fill = class)) +
+    geom_boxplot() +
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Simulation data"),
+         x = "Class",
+         y = "Value") +
+    scale_fill_discrete(labels = class_labels) +
+  # Add median text above each box in bold
+  geom_text(data = medians, aes(label = median_value, y = median_value), 
+            position = position_dodge(width = 0.75), vjust = -0.25, color = "black", size = 3, fontface = "bold")
+  
+  print(p)
+```
+non-overlapping
+
+
+Now we run 
+
+Lasso, ridge, GPR, 3-GPNN, 4-GPNN and GPNN, probably need gpols and gpgp too
+For lasso, ridge, i modified `sim_depind15_ridgelasso.R ` sim_nov5_ridge aand sim_nov5_lasso 20961946
+for 4-GPNN, i modified `sim_sm_depind15_mixed2_gpnn_bbig_init.R` nov5_sm_depind15_gpnn_c4_init 20961992 => 400 epochs
+for 4-GPOLS, created `sim_sm_depind15_gpols_init.R` nov5_pm_sm_gpols_12init  20962016 500 epochs
+for 4-GPGP, created `sim_sm_depind15_gpgp_init.R`  20962047 500 epochs
+for GPR, created `sim_depind15_gpr.R` sim_nov5_depind15_gpr 20720594
+for GPNN, created `sim_depind15_gpnn_init.R` nov5_pm_gpnn_12init 20962081 400 epochs
 
 
 
