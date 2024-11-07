@@ -11806,15 +11806,14 @@ for (r in success.run) {
          x = "Class",
          y = "Value") +
     scale_fill_discrete(labels = class_labels) +
-    # Add median text above each box
-    geom_text(data = medians, aes(label = median_value, y = median_value), 
-              position = position_dodge(width = 0.75), vjust = -0.5, color = "black", size = 3)
+  # Add median text above each box in bold
+  geom_text(data = medians, aes(label = median_value, y = median_value), 
+            position = position_dodge(width = 0.75), vjust = -0.25, color = "black", size = 3, fontface = "bold")
   
   print(p)
 }
 ```
 let's do run 1,2,10 ==> arbitrarily.
-
 
 Predictions
 ```{r}
@@ -11828,7 +11827,7 @@ age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/ages
 
 # Load the number of test cases
 n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
-success.run <- c(1:10)
+success.run <- c(1,2,10)
 
 for (r in success.run) {
   # Load and process data
@@ -11839,23 +11838,23 @@ for (r in success.run) {
   # Merge with age and sex information
   age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pm_tf')]
   age.in <- cbind(age.in, dat.in$pred, (age.in$pm_tf - dat.in$pred), as.factor(dat.in$class))
-  colnames(age.in) <- c('age', 'sex', 'DepInd', 'pm_tf', 'pred', 'residual', 'class')
+  colnames(age.in) <- c('Age', 'Sex', 'Deprivation_Index', 'Pair_Matching', 'Prediction', 'Residual', 'Class')
 
   ### 1. Scatter Plot: pm_tf (Truth) vs pred (Fitted)
-  truth_vs_fitted_plot <- ggplot(age.in, aes(x = pred, y = pm_tf, color = class)) +
+  truth_vs_fitted_plot <- ggplot(age.in, aes(x = Prediction, y = Pair_Matching, color = Class)) +
     geom_point(alpha = 0.7) +  # Use points with slight transparency
     geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black") +  # Add a y=x line
     scale_color_manual(values = c("1" = "darkblue", "2" = "darkred")) +  # Dark blue for Class 1, Dark red for Class 2
     theme_minimal() +
-    labs(title = "Fitted vs Truth", x = "Fitted Values (pred)", y = "True Values (pm_tf)", color = "Class") +
+    labs(title = "Fitted vs Truth", x = "Fitted Values", y = "True Values", color = "Class") +
     theme(legend.position = "right")  # Show legend on the right
 
   ### 2. Scatter Plot: SqError vs pred (Fitted)
-  sqerror_vs_fitted_plot <- ggplot(age.in, aes(x = pred, y = residual, color = class)) +
+  sqerror_vs_fitted_plot <- ggplot(age.in, aes(x = Prediction, y = Residual, color = Class)) +
     geom_point(alpha = 0.7) +  # Use points with slight transparency
     scale_color_manual(values = c("1" = "darkblue", "2" = "darkred")) +  # Dark blue for Class 1, Dark red for Class 2
     theme_minimal() +
-    labs(title = "Residual vs Fitted", x = "Fitted Values (pred)", y = "y-y^", color = "Class") +
+    labs(title = "Residual vs Fitted", x = "Fitted Values", y = "Residual", color = "Class") +
     theme(legend.position = "right")  # Show legend on the right
 
   ### Combine the two plots using patchwork
@@ -11868,6 +11867,417 @@ for (r in success.run) {
 ```
 
 
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)
+library(patchwork)
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(1, 2, 10)
+
+# Set consistent colors for the classes
+class_colors <- c("1" = "lightblue4", "2" = "deeppink3")
+
+for (r in success.run) {
+  # Load and process data
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K2_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  
+  # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pm_tf')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pm_tf)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('Age', 'Sex', 'Deprivation_Index', 'Pair_Matching', 'Prediction', 'Squared_Error', 'Class')
+  
+  # Calculate class sizes and labels for legends
+  class_sizes <- age.in %>%
+    group_by(Class) %>%
+    summarise(count = n())
+  class_labels <- paste0(class_sizes$Class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$Class
+  
+  # Boxplot with medians
+  age.in_long <- pivot_longer(age.in, cols = c(Age, Sex, Deprivation_Index, Prediction, Squared_Error, Pair_Matching), names_to = "variable", values_to = "value")
+  medians <- age.in_long %>%
+    group_by(Class, variable) %>%
+    summarise(median_value = round(median(value, na.rm = TRUE), 3), .groups = 'drop')
+
+  p <- ggplot(age.in_long, aes(x = Class, y = value, fill = Class)) +
+    geom_boxplot() +
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Non-imaging Covariates, Labeled by Class for Run #", r),
+         x = "Class",
+         y = "Value") +
+    scale_fill_manual(values = class_colors, labels = class_labels) +
+    geom_text(data = medians, aes(label = median_value, y = median_value), 
+              position = position_dodge(width = 0.75), vjust = -0.25, color = "black", size = 3, fontface = "bold")
+  print(p)
+
+  # Scatter Plots with Sample Size Annotations
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pm_tf')]
+  age.in <- cbind(age.in, dat.in$pred, (age.in$pm_tf - dat.in$pred), as.factor(dat.in$class))
+  colnames(age.in) <- c('Age', 'Sex', 'Deprivation_Index', 'Pair_Matching', 'Prediction', 'Residual', 'Class')
+
+  # Scatter plot: pm_tf (Truth) vs pred (Fitted)
+  truth_vs_fitted_plot <- ggplot(age.in, aes(x = Prediction, y = Pair_Matching, color = Class)) +
+    geom_point(alpha = 0.7) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black") +
+    scale_color_manual(values = class_colors, labels = class_labels) +
+    theme_minimal() +
+    labs(title = "Fitted vs Truth", x = "Fitted Values", y = "True Values", color = "Class") +
+    theme(legend.position = "right")
+
+  # Scatter plot: SqError vs pred (Fitted)
+  sqerror_vs_fitted_plot <- ggplot(age.in, aes(x = Prediction, y = Residual, color = Class)) +
+    geom_point(alpha = 0.7) +
+    scale_color_manual(values = class_colors, labels = class_labels) +
+    theme_minimal() +
+    labs(title = "Residual vs Fitted", x = "Fitted Values", y = "Residual", color = "Class") +
+    theme(legend.position = "right")
+
+  # Combine scatter plots
+  combined_plot <- truth_vs_fitted_plot + sqerror_vs_fitted_plot +
+    plot_layout(ncol = 2) +
+    plot_annotation(title = paste("Scatter Plots for Run", r))
+  
+  print(combined_plot)
+}
+```
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)
+library(patchwork)
+
+# Directory for saving plots
+output_dir <- "/well/nichols/users/qcv214/KGPNN/cog/figs"
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(1, 2, 10)
+
+# Set consistent colors for the classes
+class_colors <- c("1" = "lightblue4", "2" = "deeppink3")
+
+for (r in success.run) {
+  # Load and process data
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug22_pm_sm_gpols_12init_bbs_K2_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  
+  # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pm_tf')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pm_tf)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('Age', 'Sex', 'Deprivation_Index', 'Pair_Matching', 'Prediction', 'Squared_Error', 'Class')
+  
+  # Calculate class sizes and labels for legends
+  class_sizes <- age.in %>%
+    group_by(Class) %>%
+    summarise(count = n())
+  class_labels <- paste0(class_sizes$Class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$Class
+  
+  # Boxplot with medians
+  age.in_long <- pivot_longer(age.in, cols = c(Age, Sex, Deprivation_Index, Prediction, Squared_Error, Pair_Matching), names_to = "variable", values_to = "value")
+  medians <- age.in_long %>%
+    group_by(Class, variable) %>%
+    summarise(median_value = round(median(value, na.rm = TRUE), 3), .groups = 'drop')
+
+  p <- ggplot(age.in_long, aes(x = Class, y = value, fill = Class)) +
+    geom_boxplot() +
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Non-imaging Covariates, Labeled by Class for Run #", r),
+         x = "Class",
+         y = "Value") +
+    scale_fill_manual(values = class_colors, labels = class_labels) +
+  geom_text(data = medians, aes(label = median_value, y = median_value), 
+            position = position_dodge(width = 0.75), vjust = -0.25, color = "black", size = 3, fontface = "bold")
+  
+  # Save boxplot as PDF
+  ggsave(filename = file.path(output_dir, paste0("boxplot_run_", r, ".pdf")), plot = p, width = 10, height = 8)
+
+  # Scatter Plots with Sample Size Annotations
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pm_tf')]
+  age.in <- cbind(age.in, dat.in$pred, (age.in$pm_tf - dat.in$pred), as.factor(dat.in$class))
+  colnames(age.in) <- c('Age', 'Sex', 'Deprivation_Index', 'Pair_Matching', 'Prediction', 'Residual', 'Class')
+
+  # Scatter plot: pm_tf (Truth) vs pred (Fitted)
+  truth_vs_fitted_plot <- ggplot(age.in, aes(x = Prediction, y = Pair_Matching, color = Class)) +
+    geom_point(alpha = 0.7) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black") +
+    scale_color_manual(values = class_colors, labels = class_labels) +
+    theme_minimal() +
+    labs(title = "Fitted vs Truth", x = "Fitted Values", y = "True Values", color = "Class") +
+    theme(legend.position = "right")
+
+  # Scatter plot: SqError vs pred (Fitted)
+  sqerror_vs_fitted_plot <- ggplot(age.in, aes(x = Prediction, y = Residual, color = Class)) +
+    geom_point(alpha = 0.7) +
+    scale_color_manual(values = class_colors, labels = class_labels) +
+    theme_minimal() +
+    labs(title = "Residual vs Fitted", x = "Fitted Values", y = "Residual", color = "Class") +
+    theme(legend.position = "right")
+
+  # Combine scatter plots
+  combined_plot <- truth_vs_fitted_plot + sqerror_vs_fitted_plot +
+    plot_layout(ncol = 2) +
+    plot_annotation(title = paste("Scatter Plots for Run", r))
+  
+  # Save scatter plot as PDF
+  ggsave(filename = file.path(output_dir, paste0("scatter_plot_run_", r, ".pdf")), plot = combined_plot, width = 12, height = 6)
+}
+```
+
+I still need to delete fitted vs truth?
+
+
+###PM GP-OLS K = 3
+Distributions
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(feather)  # Ensure this package is installed for reading feather files
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(1:10)
+
+for (r in success.run) {
+  # Load and process data
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpols_12init_bbs_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+  
+  # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pm_tf')]
+  age.in <- cbind(age.in, dat.in$pred, (dat.in$pred - age.in$pm_tf)^2, as.factor(dat.in$class))
+  colnames(age.in) <- c('Age', 'Sex', 'Deprivation_Index', 'Pair_Matching', 'Prediction', 'Squared_Error', 'Class')
+  
+  # Calculate the median `pred` for each `class`
+  class_order <- age.in %>%
+    group_by(Class) %>%
+    summarise(median_pred = median(Prediction, na.rm = TRUE)) %>%
+    arrange(median_pred) %>%
+    pull(Class)
+  
+  # Reorder the `Class` factor based on the median `Prediction`
+  age.in$Class <- factor(age.in$Class, levels = class_order)
+  
+  # Calculate class sizes
+  class_sizes <- age.in %>%
+    group_by(Class) %>%
+    summarise(count = n())
+  
+  # Create a named vector for custom labels
+  class_labels <- paste0(class_sizes$Class, " (n=", class_sizes$count, ")")
+  names(class_labels) <- class_sizes$Class
+  
+  # Reshape the data for plotting
+  age.in_long <- pivot_longer(age.in, cols = c(Age, Sex, Deprivation_Index, Prediction, Squared_Error, Pair_Matching), names_to = "variable", values_to = "value")
+  
+  # Calculate median values for annotation
+  medians <- age.in_long %>%
+    group_by(Class, variable) %>%
+    summarise(median_value = round(median(value, na.rm = TRUE), 3), .groups = 'drop')
+  
+  # Create the boxplot with class sizes in the legend
+  p <- ggplot(age.in_long, aes(x = Class, y = value, fill = Class)) +
+    geom_boxplot() +
+    facet_wrap(~ variable, scales = "free") +
+    theme_minimal() +
+    labs(title = paste("Boxplot of Non-imaging Covariates, Labeled by Class for Run #", r),
+         x = "Class",
+         y = "Value") +
+    scale_fill_discrete(labels = class_labels) +
+  # Add median text above each box in bold
+  geom_text(data = medians, aes(label = median_value, y = median_value), 
+            position = position_dodge(width = 0.75), vjust = -0.25, color = "black", size = 3, fontface = "bold")
+  
+  print(p)
+}
+```
+5 has good interpretations Run 4,6,7 isn't great. Let's do 4,5,6
+
+Predictions
+```{r}
+library(dplyr)
+library(ggplot2)
+library(feather)
+library(patchwork)  # For combining plots
+
+# Load the age and sex stratified data
+age_tab <- as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/cog/agesex_strat2.feather'))
+
+# Load the number of test cases
+n.test <- length(read.csv('/well/nichols/users/qcv214/KGPNN/cog/cog_train_index.csv')$x)
+success.run <- c(4:6)
+
+for (r in success.run) {
+  # Load and process data
+  dat.in <- as.data.frame(t(read_feather(paste0('/well/nichols/users/qcv214/KGPNN/cog/pile/re_aug9_pm_sm_gpols_12init_bbs_inpred__jobid_', r, '.feather'))))[, c(1:3)]
+  dat.in <- tail(dat.in, n.test)
+  colnames(dat.in) <- c('id_ind', 'pred', 'class')
+
+  # Merge with age and sex information
+  age.in <- age_tab[dat.in$id_ind, c('age', 'sex', 'DepInd', 'pm_tf')]
+  age.in <- cbind(age.in, dat.in$pred, (age.in$pm_tf - dat.in$pred), as.factor(dat.in$class))
+  colnames(age.in) <- c('Age', 'Sex', 'Deprivation_Index', 'Pair_Matching', 'Prediction', 'Residual', 'Class')
+
+  ### 1. Scatter Plot: pm_tf (Truth) vs pred (Fitted)
+  truth_vs_fitted_plot <- ggplot(age.in, aes(x = Prediction, y = Pair_Matching, color = Class)) +
+    geom_point(alpha = 0.7) +  # Use points with slight transparency
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black") +  # Add a y=x line
+    scale_color_manual(values = c("1" = "darkblue", "2" = "darkred", "3" = 'orange')) +  # Dark blue for Class 1, Dark red for Class 2
+    theme_minimal() +
+    labs(title = "Fitted vs Truth", x = "Fitted Values", y = "True Values", color = "Class") +
+    theme(legend.position = "right")  # Show legend on the right
+
+  ### 2. Scatter Plot: SqError vs pred (Fitted)
+  sqerror_vs_fitted_plot <- ggplot(age.in, aes(x = Prediction, y = Residual, color = Class)) +
+    geom_point(alpha = 0.7) +  # Use points with slight transparency
+    scale_color_manual(values = c("1" = "darkblue", "2" = "darkred", "3" = 'orange')) +  # Dark blue for Class 1, Dark red for Class 2
+    theme_minimal() +
+    labs(title = "Residual vs Fitted", x = "Fitted Values", y = "Residual", color = "Class") +
+    theme(legend.position = "right")  # Show legend on the right
+
+  ### Combine the two plots using patchwork
+  combined_plot <- truth_vs_fitted_plot + sqerror_vs_fitted_plot + 
+    plot_layout(ncol = 2) +  # Arrange the two plots side by side
+    plot_annotation(title = paste("Scatter Plots for Run", r))  # Add a main title for the combined plot
+
+  print(combined_plot)
+}
+```
+
+##SGLD results
+Need unseen. Also need a comparison e.g. MALA and GPR? or if want fast then GPR is better 
+SGLD data jitter ~ oct9 `pm_sm_gpols_12init_K_sgld_run.R` ==> need to rerun this for longer
+specify how run is picked (min loss) the jitter needed. 
+Maybe do need to do convergence test but need to explain that params from different runs are in different spaces.
+Give the following comparison:
+- GPR - no subclasses
+- 2-GPOLS
+- 4-GPOLS (maybe 3 as well) ==> need to check if MAP is correct
+    -> i think easier to compare GPOLS k = 2 with gpgp and gpnn k = 2, and gpols-imaging only ----- we already identified _map_ for the bbs.
+    -> but k = 4 can show unstability.
+
+- No need for MALA since it's infeasible as shown in prev chapter.
+
+###look at gpnn k = 2
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 500*4  # Total number of iterations
+runs <- c(1:10)
+res.mat <- matrix(, nrow = length(runs), ncol = num.it)
+
+for (i in runs) {
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct30_pm_sm_gpnn_12init_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE for iterations 10 to 400
+resdat <- as.data.frame(res.mat)[, 10:num.it]  # Use iterations 10 to 400
+colnames(resdat) <- 10:num.it  # Update column names to reflect the actual iteration numbers
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  scale_x_continuous(breaks = seq(10, num.it, by = 500), limits = c(10, num.it)) +  # Set x-axis from 10 to 400 with breaks every 50
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+Same as gpgp, let's pick run with lowest at the end
+```{r}
+which.min(res.mat[,2000])
+```
+
+`pm_sm_gpnn_12init_sgld_run.R` oct30_pm_sm_gpnn_12init_sgld_lr99_run4  20637053
+
+###look at gpgp k = 2
+```{r}
+library(ggplot2)
+library(tidyr)
+
+num.it <- 500*4  # Total number of iterations
+runs <- c(1:10)
+res.mat <- matrix(, nrow = length(runs), ncol = num.it)
+
+for (i in runs) {
+  res.mat[which(i == runs), ] <- t(as.matrix(read.csv(paste0("/well/nichols/users/qcv214/KGPNN/cog/pile/re_oct31_pm_sm_gpgp_12init_map__jobid_", i, ".csv"))))[, 1:num.it]
+}
+
+# Plotting Test RMSE for iterations 10 to 400
+resdat <- as.data.frame(res.mat)  # Use iterations 10 to 400
+colnames(resdat) <- 1:num.it  # Update column names to reflect the actual iteration numbers
+resdat$row_id <- seq_len(nrow(resdat))
+
+# Reshape the data to long format for ggplot
+resdat_long <- pivot_longer(resdat, cols = -row_id, names_to = "column", values_to = "value")
+
+# Create the line plot for Test RMSE
+ggplot(resdat_long, aes(x = as.numeric(column), y = value, group = row_id, color = as.factor(row_id))) +
+  geom_line() +  # Add geom_line() to draw the lines
+  scale_x_continuous(breaks = seq(0, num.it, by = 500), limits = c(0, num.it)) +  # Set x-axis from 10 to 400 with breaks every 50
+  theme_minimal() +
+  labs(title = "Training neg logPosterior loss", x = "Iterations", y = "Value", color = "Run number")
+```
+We can see that RMSE shoot up from 0 it, but then it decreases very nicely over time. in this case let's pick from from
+```{r}
+which.min(resdat[,2000])
+```
+we'll do sgld on run 9.
+//`pm_sm_gpgp_12init_sgld_run.R` oct31_pm_sm_gpgp_12init_sgld_lr99_run9 20636965
+
+###for gpols K = 2
+// nov4_pm_sm_gpols_12init_sgld_lr99_run2 20637068
+
+###for gpols K = 3 
+So the MAP isn't right but can still use the lowest map as the incorrect terms are all the same regardless of theta.
+Maybe don't need??
+
+###for gpols-img-only
+`aug9_pm_gpols_12init_sgld` => already have results 
+
+
+##Saliency, check for saliency
+`sep24_pm/` `sep24_similar`
+The code for plotting is commented under `pm_sm_gpols_12init_K_bbs.R` which works for K = 2. 
+Let's just go with what we already have for saliency.
+Contrast it against LASSO, Ridge, GPR ==> need to generate.
+// `pm_ridgelasso.R` 20635580 added saliency for ridge and lasso, saving to /viz, aug9, created viz/ridgelasso to save the merged ridge and lasso over runs. 
+gpr was always saved
+it's not displaying the correct results. gpr and ridge are empty, but these have many non-zero coef tho
+So, for ridge, it seems fine when I don't compile it and look at individual photos, but for GPR something is wrong. All saved images are nan.
+Maybe I have to do `abs(c(beta_fit$NM))`
+//Running  `pm_gpr` again with this 20646174 => still not working.. okay, apparently got an error that it's not same length
+
+##Bimodal
+oct29_pm_bi_gpols_init 20641619, 20653632 ==> observe the dimensions of each component in training hidden layer, since I think z.nb is the problem.
+    so i thought it was the learning rate that was problem but it got update every epoch but my method failed within epoh. so 20691776 will attemp reducing starting lr
+    20716821 => reduce lr and assess the mean magnitude of gradients .... so i think either i have exploding or diminishing gradient. Maybe I should just say if gradient < 1e-10 then don't update. I think fixing grad.loss should fix all this maybe
+    20723998 ==> change grad.loss to 0 if < 1e-8
 
 
 
+  
