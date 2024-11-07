@@ -473,9 +473,9 @@ arma::mat updateBiasGPinter(int minibatchSize, int nMask, int numLatClass,
 }', depends = "RcppArmadillo")
 
 
-#Bimodal GP-OLS
+#Bimodal GP-OLS (old, only do pair-wise)
 cppFunction('
-arma::cube updateDoubleWeightsGPFirst(int minibatchSize, int nMask, double ySigma, 
+arma::cube updateDoubleWeightsGPFirst2(int minibatchSize, int nMask, double ySigma, 
                                   const arma::vec& gradLoss, const arma::vec& betaHS, 
                                   const arma::mat& hiddenLayer, const arma::cube& res3dat,
                                   const arma::mat& hiddenLayerdmn, const arma::cube& res3datdmn) {
@@ -490,8 +490,39 @@ arma::cube updateDoubleWeightsGPFirst(int minibatchSize, int nMask, double ySigm
     return grad;
 }', depends = "RcppArmadillo")
 
+
+
+#Bimodal GP-OLS all interactions 29/10/24
 cppFunction('
-arma::cube updateDoubleWeightsGPSecond(int minibatchSize, int nMask, double ySigma, 
+arma::cube updateDoubleWeightsGPFirst(int minibatchSize, int nMask, double ySigma, 
+                                  const arma::vec& gradLoss, const arma::vec& betaHS, 
+                                  const arma::mat& hiddenLayer, const arma::cube& res3dat,
+                                  const arma::mat& hiddenLayerdmn, const arma::cube& res3datdmn) {
+    using namespace std;
+    arma::cube grad(minibatchSize,res3dat.n_slices, nMask, arma::fill::zeros);
+    for (int j = 0; j < nMask; ++j) {
+      // Calculate index offsets for the additional terms
+      int offset = nMask + nMask + 1 + (j - 1) * nMask;
+
+      // Initialize additionalTerms with the first component
+      arma::vec additionalTerms = betaHS(j) + betaHS(offset) * hiddenLayerdmn.col(0);
+
+      // Compute the remaining additional terms using a for loop
+      for (int k = 1; k < nMask; ++k) {
+          additionalTerms += betaHS(offset + k) * hiddenLayerdmn.col(k);
+      }
+      // Complete gradient term calculation
+      arma::mat test = -1.0 / ySigma * gradLoss % additionalTerms % arma::sign(hiddenLayer.col(j));
+      arma::mat gradMat = res3dat.row(j);
+      gradMat.each_col() %= test; // Efficient element-wise multiplication
+      grad.slice(j) = gradMat;
+    }
+    return grad;
+}', depends = "RcppArmadillo")
+
+#### 2nd layer but old, only do pair-wise
+cppFunction('
+arma::cube updateDoubleWeightsGPSecond2(int minibatchSize, int nMask, double ySigma, 
                                   const arma::vec& gradLoss, const arma::vec& betaHS, 
                                   const arma::mat& hiddenLayer, const arma::cube& res3dat,
                                   const arma::mat& hiddenLayerdmn, const arma::cube& res3datdmn) {
@@ -506,4 +537,101 @@ arma::cube updateDoubleWeightsGPSecond(int minibatchSize, int nMask, double ySig
     return grad;
 }', depends = "RcppArmadillo")
 
+cppFunction('
+arma::cube updateDoubleWeightsGPSecond2(int minibatchSize, int nMask, double ySigma, 
+                                  const arma::vec& gradLoss, const arma::vec& betaHS, 
+                                  const arma::mat& hiddenLayer, const arma::cube& res3dat,
+                                  const arma::mat& hiddenLayerdmn, const arma::cube& res3datdmn) {
+    using namespace std;
+    arma::cube grad(minibatchSize,res3dat.n_slices, nMask, arma::fill::zeros);
+    for (int j = 0; j < nMask; ++j) {
+        arma::mat test = (-1.0 / ySigma) * gradLoss % (betaHS(j+nMask) + (betaHS((j+(nMask*2))) * hiddenLayer.col(j))) % arma::sign(hiddenLayerdmn.col(j));
+        arma::mat gradMat = res3datdmn.row(j);
+        gradMat.each_col() %= test; // Efficient element-wise multiplication
+        grad.slice(j) = gradMat;
+    }
+    return grad;
+}', depends = "RcppArmadillo")
 
+#Bimodal GP-OLS all interactions for dmn
+cppFunction('
+arma::cube updateDoubleWeightsGPSecond(int minibatchSize, int nMask, double ySigma, 
+                                  const arma::vec& gradLoss, const arma::vec& betaHS, 
+                                  const arma::mat& hiddenLayer, const arma::cube& res3dat,
+                                  const arma::mat& hiddenLayerdmn, const arma::cube& res3datdmn) {
+    using namespace std;
+    arma::cube grad(minibatchSize,res3dat.n_slices, nMask, arma::fill::zeros);
+    for (int j = 0; j < nMask; ++j) {
+      // Calculate index offsets for the additional terms
+      int offset = nMask + nMask + 1 + (j - 1) * nMask;
+
+      // Initialize additionalTerms with the first component
+      arma::vec additionalTerms = betaHS(j + nMask) + betaHS(offset) * hiddenLayer.col(0);
+
+      // Compute the remaining additional terms using a for loop
+      for (int k = 1; k < nMask; ++k) {
+          additionalTerms += betaHS(offset + k) * hiddenLayer.col(k);
+      }
+      // Complete gradient term calculation
+      arma::mat test = -1.0 / ySigma * gradLoss % additionalTerms % arma::sign(hiddenLayerdmn.col(j));
+      arma::mat gradMat = res3datdmn.row(j);
+      gradMat.each_col() %= test; // Efficient element-wise multiplication
+      grad.slice(j) = gradMat;
+    }
+    return grad;
+}', depends = "RcppArmadillo")
+
+#Updating bias with interactions 29/10/24
+cppFunction('
+arma::mat updateGradBGPFirst(int minibatchSize, int nMask, double ySigma, 
+                               const arma::vec& gradLoss, const arma::vec& betaHS, 
+                               const arma::mat& hiddenLayer, const arma::mat& hiddenLayerdmn) {
+    arma::mat gradB(minibatchSize, nMask, arma::fill::zeros);
+
+    for (int j = 0; j < nMask; ++j) {
+        // Calculate index offsets for the additional terms
+        int offset = nMask + nMask + 1 + (j - 1) * nMask;
+
+        // Initialize additionalTerms with the first component
+        arma::vec additionalTerms = betaHS(j) + betaHS(offset) * hiddenLayerdmn.col(0);
+
+        // Compute the remaining additional terms using a for loop
+        for (int k = 1; k < nMask; ++k) {
+            additionalTerms += betaHS(offset + k) * hiddenLayerdmn.col(k);
+        }
+
+        // Compute the result vector for the current weight index j
+        arma::vec resultVec = -1.0 / ySigma * (gradLoss % additionalTerms % arma::sign(hiddenLayer.col(j)));
+
+        // Assign the result to the appropriate column in gradB
+        gradB.col(j) = resultVec;
+    }
+    return gradB;
+}', depends = "RcppArmadillo")
+
+cppFunction('
+arma::mat updateGradBGPSecond(int minibatchSize, int nMask, double ySigma, 
+                               const arma::vec& gradLoss, const arma::vec& betaHS, 
+                               const arma::mat& hiddenLayer, const arma::mat& hiddenLayerdmn) {
+    arma::mat gradB(minibatchSize, nMask, arma::fill::zeros);
+
+    for (int j = 0; j < nMask; ++j) {
+        // Calculate index offsets for the additional terms
+        int offset = nMask + nMask + 1 + (j - 1) * nMask;
+
+        // Initialize additionalTerms with the first component
+        arma::vec additionalTerms = betaHS(j + nMask) + betaHS(offset) * hiddenLayer.col(0);
+
+        // Compute the remaining additional terms using a for loop
+        for (int k = 1; k < nMask; ++k) {
+            additionalTerms += betaHS(offset + k) * hiddenLayer.col(k);
+        }
+
+        // Compute the result vector for the current weight index j
+        arma::vec resultVec = -1.0 / ySigma * (gradLoss % additionalTerms % arma::sign(hiddenLayerdmn.col(j)));
+
+        // Assign the result to the appropriate column in gradB
+        gradB.col(j) = resultVec;
+    }
+    return gradB;
+}', depends = "RcppArmadillo")

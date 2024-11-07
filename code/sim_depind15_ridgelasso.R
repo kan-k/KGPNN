@@ -1,4 +1,8 @@
+
+#Nov 5 , changed data from sim15_age.feather to sim15_age_gpr
+
 # R script
+
 
 #lasso 
 if (!require("pacman")) {install.packages("pacman");library(pacman)}
@@ -21,7 +25,9 @@ print(JobId)
 
 
 #Age
-age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+# age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age.feather'))
+
+age_tab <-  as.data.frame(read_feather('/well/nichols/users/qcv214/KGPNN/sim15_age_gpr.feather'))
 #age_tab <- age_tab[order(age_tab$id),].     #DOES THIS MESS UP ORDER
 dat.age <- age_tab$pred_amp
 sex <-  as.numeric(age_tab$sex)
@@ -111,12 +117,12 @@ time.taken <- Sys.time() - time.train
 cat("Training complete in: ", time.taken)
 
 write.csv( c(unlist(t(as.matrix(rsqcal2(pred_prior,pred_prior_new,ind.old = ind.to.use$train,ind.new = ind.to.use$test)))),as.numeric(sub('.*:', '', summary(coef(lassofit, s=lassofit$lambda.min)[-1,]))),sum(abs(coef(lassofit, s=lassofit$lambda.min))>1e-8)),
-           paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_may3_ridge_depind15_noscale_",JobId,".csv"), row.names = FALSE)
+           paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_nov5_ridge_depind15_noscale_",JobId,".csv"), row.names = FALSE)
 
 print("write prediction")
 
-write.csv(c(pred_prior_new),paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_may3_ridge_depind15_outpred_noscale_",JobId,".csv"), row.names = FALSE)
-write.csv(c(pred_prior),paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_may3_ridge_depind15_inpred_noscale_",JobId,".csv"), row.names = FALSE)
+write.csv(c(pred_prior_new),paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_nov5_ridge_depind15_outpred_noscale_",JobId,".csv"), row.names = FALSE)
+write.csv(c(pred_prior),paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_nov5_ridge_depind15_inpred_noscale_",JobId,".csv"), row.names = FALSE)
 
 
 ######LASSO
@@ -137,9 +143,9 @@ time.taken <- Sys.time() - time.train
 cat("Training complete in: ", time.taken)
 
 write.csv( c(unlist(t(as.matrix(rsqcal2(pred_prior,pred_prior_new,ind.old = ind.to.use$train,ind.new = ind.to.use$test)))),as.numeric(sub('.*:', '', summary(coef(lassofit, s=lassofit$lambda.min)[-1,]))),sum(abs(coef(lassofit, s=lassofit$lambda.min))>1e-8)),
-           paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_may3_lasso_depind15_noscale_",JobId,".csv"), row.names = FALSE)
+           paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_nov5_lasso_depind15_noscale_",JobId,".csv"), row.names = FALSE)
 
 print("write prediction")
 
-write.csv(c(pred_prior_new),paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_may3_lasso_depind15_outpred_noscale_",JobId,".csv"), row.names = FALSE)
-write.csv(c(pred_prior),paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_may3_lasso_depind15_inpred_noscale_",JobId,".csv"), row.names = FALSE)
+write.csv(c(pred_prior_new),paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_nov5_lasso_depind15_outpred_noscale_",JobId,".csv"), row.names = FALSE)
+write.csv(c(pred_prior),paste0("/well/nichols/users/qcv214/KGPNN/pile/sim_nov5_lasso_depind15_inpred_noscale_",JobId,".csv"), row.names = FALSE)
